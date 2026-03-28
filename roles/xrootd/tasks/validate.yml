@@ -13,19 +13,19 @@
 
 - name: Test XRootD namespace via xrdfs
   ansible.builtin.command:
-    cmd: "xrdfs localhost:{{ xrootd_port }} ls /"
+    cmd: "xrdfs localhost:{{ xrootd_port }} ls {{ xrootd_data_path }}"
   register: _xrdfs_result
   changed_when: false
   failed_when: false
 
 - name: Show xrdfs result
   ansible.builtin.debug:
-    msg: "xrdfs ls /: rc={{ _xrdfs_result.rc }} stdout={{ _xrdfs_result.stdout | default('(none)') }}"
+    msg: "xrdfs ls {{ xrootd_data_path }}: rc={{ _xrdfs_result.rc }} stdout={{ _xrdfs_result.stdout | default('(none)') }}"
 
 - name: Warn if xrdfs returned non-zero exit code
   ansible.builtin.debug:
     msg: >
-      WARNING: xrdfs ls / returned rc={{ _xrdfs_result.rc }}.
+      WARNING: xrdfs ls {{ xrootd_data_path }} returned rc={{ _xrdfs_result.rc }}.
       Check logs at {{ xrootd_log_path }} or run: journalctl -u xrootd@{{ xrootd_config_name }}
   when: _xrdfs_result.rc != 0
 

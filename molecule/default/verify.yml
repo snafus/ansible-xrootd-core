@@ -28,7 +28,7 @@
 
     - name: Test XRootD namespace via xrdfs
       ansible.builtin.command:
-        cmd: xrdfs localhost:1094 ls /
+        cmd: "xrdfs localhost:1094 ls {{ xrootd_data_path }}"
       register: _xrdfs
       changed_when: false
       failed_when: false
@@ -38,7 +38,7 @@
         that:
           - _xrdfs.rc == 0
         fail_msg: >
-          xrdfs ls / failed (rc={{ _xrdfs.rc }}).
+          xrdfs ls {{ xrootd_data_path }} failed (rc={{ _xrdfs.rc }}).
           stderr: {{ _xrdfs.stderr | default('') }}
 
     # --- Configuration files ------------------------------------------------
