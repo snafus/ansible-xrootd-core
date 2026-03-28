@@ -1,0 +1,36 @@
+---
+# Certificate mode — one of:
+#   self_signed        : generate a self-signed cert with SANs (default)
+#   certbot_staging    : Let's Encrypt staging ACME (test without rate limits)
+#   certbot_production : Let's Encrypt production ACME
+#   external           : deploy a cert supplied by the operator
+xrootd_cert_mode: self_signed
+
+# --- Output paths -----------------------------------------------------------
+# These paths are written by all cert modes and consumed by the xrootd role.
+# Override only if you need a non-standard layout.
+xrootd_cert_dir:  /etc/xrootd/tls
+xrootd_cert_file: "{{ xrootd_cert_dir }}/server.crt"
+xrootd_key_file:  "{{ xrootd_cert_dir }}/server.key"
+xrootd_ca_file:   "{{ xrootd_cert_dir }}/ca.crt"
+
+# --- Self-signed options ----------------------------------------------------
+xrootd_cert_cn:      "{{ ansible_facts['fqdn'] }}"   # Common Name (CN)
+xrootd_cert_days:    365                     # Validity period in days
+xrootd_cert_keysize: 4096                    # RSA key size in bits
+xrootd_cert_org:     "My Organisation"
+xrootd_cert_country: "UK"
+
+# --- Certbot options --------------------------------------------------------
+# Set vault_certbot_email in vault.yml; wired in here with a safe default.
+xrootd_certbot_email:  "{{ vault_certbot_email | default('') }}"
+xrootd_certbot_domain: "{{ ansible_facts['fqdn'] }}"
+
+# --- External cert options --------------------------------------------------
+# Sub-mode A — file paths on the Ansible controller (copy src=):
+xrootd_ext_cert_src: ""
+xrootd_ext_key_src:  ""
+xrootd_ext_ca_src:   ""   # optional CA bundle
+
+# Sub-mode B — PEM content from vault (preferred — key never plaintext on disk):
+#   vault_xrootd_ext_cert, vault_xrootd_ext_key, vault_xrootd_ext_ca

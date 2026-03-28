@@ -1,0 +1,5 @@
+---
+# ansible-xrootd-core: master entry point
+# Usage: ansible-playbook site.yml
+- name: Deploy XRootD servers
+  import_playbook: playbooks/xrootd_server.yml

@@ -1,0 +1,49 @@
+---
+# Molecule verify — assert expected post-deploy state.
+- name: Verify
+  hosts: all
+  become: false
+  tasks:
+    - name: Get xrootd@standalone service status
+      ansible.builtin.systemd:
+        name: xrootd@standalone
+      register: _xrootd_svc
+
+    - name: Assert xrootd service is active
+      ansible.builtin.assert:
+        that:
+          - _xrootd_svc.status.ActiveState == 'active'
+        fail_msg: >
+          xrootd@standalone is not active.
+          State: {{ _xrootd_svc.status.ActiveState }} ({{ _xrootd_svc.status.SubState }})
+
+    - name: Assert xrootd port 1094 is listening
+      ansible.builtin.wait_for:
+        port: 1094
+        host: 127.0.0.1
+        timeout: 15
+        msg: "XRootD port 1094 is not open"
+
+    - name: Assert xrootd config file is deployed
+      ansible.builtin.stat:
+        path: /etc/xrootd/xrootd-standalone.cfg
+      register: _cfg_stat
+
+    - name: Fail if config file is missing
+      ansible.builtin.assert:
+        that:
+          - _cfg_stat.stat.exists
+        fail_msg: "xrootd-standalone.cfg not found"
+
+    - name: Assert TLS certificate exists (when TLS enabled)
+      ansible.builtin.stat:
+        path: /etc/xrootd/tls/server.crt
+      register: _cert_stat
+      when: xrootd_tls_enabled | default(true) | bool
+
+    - name: Fail if TLS certificate is missing (when TLS enabled)
+      ansible.builtin.assert:
+        that:
+          - _cert_stat.stat.exists
+        fail_msg: "TLS certificate not found at /etc/xrootd/tls/server.crt"
+      when: xrootd_tls_enabled | default(true) | bool

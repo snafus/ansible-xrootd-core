@@ -1,0 +1,39 @@
+---
+# Rocky Linux repository setup.
+# Installs EPEL and the CERN XRootD stable yum repository.
+
+- name: Assert Rocky Linux version is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in ['Rocky', 'RedHat', 'AlmaLinux', 'CentOS']
+      - ansible_facts['distribution_major_version'] in ['8', '9']
+    fail_msg: >
+      Unsupported RedHat-family OS or version.
+      Supported: Rocky/RHEL/AlmaLinux 8 or 9.
+      Got: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_major_version'] }}
+
+- name: Install EPEL repository
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Add CERN XRootD stable yum repository
+  ansible.builtin.yum_repository:
+    name: xrootd-stable
+    description: "XRootD Stable - EL{{ ansible_facts['distribution_major_version'] }}"
+    baseurl: "https://xrootd.web.cern.ch/repo/yum/xrootd/stable/el{{ ansible_facts['distribution_major_version'] }}/x86_64/"
+    gpgcheck: true
+    gpgkey: "https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt"
+    enabled: true
+    skip_if_unavailable: true
+
+- name: Refresh dnf cache
+  ansible.builtin.dnf:
+    update_cache: true
+
+- name: Full system update (opt-in via common_update_system or --tags update)
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest # noqa: package-latest
+  when: common_update_system | bool
+  tags: [update, never]

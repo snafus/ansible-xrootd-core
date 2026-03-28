@@ -1,0 +1,4 @@
+---
+# Set to true to run a full system update (dnf update / apt dist-upgrade).
+# Off by default — running updates in production should be an explicit choice.
+common_update_system: false

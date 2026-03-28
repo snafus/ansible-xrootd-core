@@ -1,0 +1,48 @@
+---
+# Post-deploy validation — verify XRootD is reachable and responding.
+# All checks use failed_when: false so a failure is reported but does not
+# abort the play; operators can inspect logs and re-run with --tags validate.
+
+- name: Wait for XRootD port to be open
+  ansible.builtin.wait_for:
+    port: "{{ xrootd_port }}"
+    host: 127.0.0.1
+    timeout: 30
+    msg: "XRootD port {{ xrootd_port }} did not open within 30 seconds"
+  failed_when: false
+
+- name: Test XRootD namespace via xrdfs
+  ansible.builtin.command:
+    cmd: "xrdfs localhost:{{ xrootd_port }} ls /"
+  register: _xrdfs_result
+  changed_when: false
+  failed_when: false
+
+- name: Show xrdfs result
+  ansible.builtin.debug:
+    msg: "xrdfs ls /: rc={{ _xrdfs_result.rc }} stdout={{ _xrdfs_result.stdout | default('(none)') }}"
+
+- name: Warn if xrdfs returned non-zero exit code
+  ansible.builtin.debug:
+    msg: >
+      WARNING: xrdfs ls / returned rc={{ _xrdfs_result.rc }}.
+      Check logs at {{ xrootd_log_path }} or run: journalctl -u xrootd@{{ xrootd_config_name }}
+  when: _xrdfs_result.rc != 0
+
+# Any 2xx/3xx/4xx response confirms xrootd is listening; 5xx or no response
+# indicates a problem with the HTTP plugin or TLS setup.
+- name: Test HTTP endpoint (if HTTP enabled)
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ xrootd_port }}/"
+    validate_certs: false
+    status_code: [200, 301, 302, 401, 403]
+    timeout: 10
+  register: _http_result
+  when: xrootd_http_enabled | bool
+  failed_when: false
+  changed_when: false
+
+- name: Show HTTP check result
+  ansible.builtin.debug:
+    msg: "HTTP check: {{ _http_result.status | default('no response / error') }}"
+  when: xrootd_http_enabled | bool

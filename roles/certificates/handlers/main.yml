@@ -1,0 +1,8 @@
+---
+# Restart xrootd when certificate files change.
+# failed_when: false — xrootd may not yet be installed on first run.
+- name: Restart xrootd
+  ansible.builtin.systemd:
+    name: "xrootd@{{ xrootd_config_name | default('standalone') }}"
+    state: restarted
+  failed_when: false

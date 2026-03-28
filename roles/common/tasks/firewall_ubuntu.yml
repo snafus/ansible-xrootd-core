@@ -1,0 +1,24 @@
+---
+# Install and enable ufw on Ubuntu.
+# SSH is allowed before ufw is enabled to prevent accidental lockout.
+# Port rules are NOT added here — the xrootd role opens its own ports.
+
+- name: Install ufw
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+
+# Allow SSH first — must happen before ufw is enabled.
+- name: Allow SSH (prevents lockout when ufw is enabled)
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Set default policy (deny incoming, allow outgoing)
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled

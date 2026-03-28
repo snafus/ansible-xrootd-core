@@ -1,0 +1,31 @@
+---
+# Enable and start XRootD systemd template unit(s).
+# xrootd@<name> reads /etc/xrootd/xrootd-<name>.cfg
+# cmsd@<name>   is the cluster manager daemon (required for non-standalone modes)
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Enable and start xrootd service
+  ansible.builtin.systemd:
+    name: "xrootd@{{ xrootd_config_name }}"
+    state: started
+    enabled: true
+
+# cmsd is required for clustered modes (server, redirector) but not standalone.
+- name: Enable and start cmsd service (clustered mode only)
+  ansible.builtin.systemd:
+    name: "cmsd@{{ xrootd_config_name }}"
+    state: started
+    enabled: true
+  when: xrootd_config_name != 'standalone'
+
+- name: Get xrootd service status
+  ansible.builtin.systemd:
+    name: "xrootd@{{ xrootd_config_name }}"
+  register: _xrootd_svc
+
+- name: Show xrootd service status
+  ansible.builtin.debug:
+    msg: "xrootd@{{ xrootd_config_name }}: {{ _xrootd_svc.status.ActiveState }} ({{ _xrootd_svc.status.SubState }})"

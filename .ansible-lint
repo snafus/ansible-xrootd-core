@@ -1,0 +1,21 @@
+---
+profile: production
+
+# Paths to exclude from linting
+exclude_paths:
+  - .git/
+  - molecule/
+
+# Downgrade to warnings rather than errors
+warn_list:
+  - yaml[line-length]
+  - experimental        # rules still in development
+
+# Skip rules that are overly strict for this project
+skip_list:
+  - role-name           # role names use underscores — intentional
+  - var-naming[no-role-prefix]  # cross-role variable contract (xrootd_* used across roles intentionally)
+
+# Ensure collections are available for linting
+mock_modules: []
+mock_roles: []

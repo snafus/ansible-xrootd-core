@@ -1,0 +1,13 @@
+---
+# Deploy the XRootD Authfile when authorisation is enabled.
+# The Authfile controls which users/groups can read, write, or list paths.
+
+- name: Deploy Authfile
+  ansible.builtin.template:
+    src: Authfile.j2
+    dest: "{{ xrootd_auth_dir }}/Authfile"
+    owner: xrootd
+    group: xrootd
+    mode: "0640"
+  when: xrootd_auth_enabled | bool
+  notify: Restart xrootd

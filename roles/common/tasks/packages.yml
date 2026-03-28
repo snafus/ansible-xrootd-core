@@ -1,0 +1,29 @@
+---
+# Install common utility packages required by downstream roles.
+# Package names differ between distros; set_fact selects the right list.
+
+- name: Set package list (Rocky)
+  ansible.builtin.set_fact:
+    _common_packages:
+      - openssl
+      - net-tools
+      - bind-utils
+      - python3
+      - ca-certificates
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Set package list (Ubuntu)
+  ansible.builtin.set_fact:
+    _common_packages:
+      - openssl
+      - net-tools
+      - dnsutils
+      - python3
+      - ca-certificates
+      - python3-apt
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install common packages
+  ansible.builtin.package:
+    name: "{{ _common_packages }}"
+    state: present

@@ -1,0 +1,99 @@
+---
+# Deploy the XRootD configuration file and supporting files (robots.txt,
+# macaroon secret, scitokens config). Any change triggers a service restart
+# via the handler.
+
+# Validate required variables before any config is written.
+- name: Assert xrootd_redirector_host is set for clustered modes
+  ansible.builtin.assert:
+    that:
+      - xrootd_redirector_host | length > 0
+    fail_msg: >
+      xrootd_config_name is '{{ xrootd_config_name }}' but xrootd_redirector_host is empty.
+      Set xrootd_redirector_host to the FQDN of the redirector in your inventory.
+  when: xrootd_config_name in ['server', 'redirector']
+
+- name: Deploy XRootD configuration
+  ansible.builtin.template:
+    src: "xrootd-{{ xrootd_config_name }}.cfg.j2"
+    dest: "/etc/xrootd/xrootd-{{ xrootd_config_name }}.cfg"
+    owner: xrootd
+    group: xrootd
+    mode: "0640"
+  notify: Restart xrootd
+
+- name: Deploy robots.txt (used by HTTP protocol plugin)
+  ansible.builtin.copy:
+    src: robots.txt
+    dest: /etc/xrootd/robots.txt
+    owner: xrootd
+    group: xrootd
+    mode: "0644"
+  when: xrootd_http_enabled | bool
+
+# Macaroon secret management — see defaults/main.yml for full logic description.
+- name: Manage macaroon secret
+  when: xrootd_macaroons_enabled | bool
+  block:
+    - name: Stat macaroon secret file
+      ansible.builtin.stat:
+        path: "{{ xrootd_macaroon_secret_file }}"
+      register: _macaroon_stat
+
+    # vault_macaroon_secret takes priority — ensures the same secret is used
+    # on every node in a cluster.
+    - name: Write macaroon secret from vault
+      ansible.builtin.copy:
+        content: "{{ vault_macaroon_secret }}"
+        dest: "{{ xrootd_macaroon_secret_file }}"
+        owner: root
+        group: xrootd
+        mode: "0640"
+      when:
+        - vault_macaroon_secret is defined
+        - vault_macaroon_secret | length > 0
+      no_log: true
+      notify: Restart xrootd
+
+    # Auto-generate only when vault value is absent AND file does not yet exist.
+    # Not suitable for multi-node deployments — use vault_macaroon_secret instead.
+    # Split into generate + write so an openssl failure does not leave an empty file.
+    - name: Generate macaroon secret value
+      ansible.builtin.command:
+        cmd: "openssl rand -base64 64"
+      register: _macaroon_generated
+      when:
+        - vault_macaroon_secret is not defined or vault_macaroon_secret | length == 0
+        - not _macaroon_stat.stat.exists
+      changed_when: true
+      no_log: true
+
+    - name: Write generated macaroon secret to file
+      ansible.builtin.copy:
+        content: "{{ _macaroon_generated.stdout }}"
+        dest: "{{ xrootd_macaroon_secret_file }}"
+        owner: root
+        group: xrootd
+        mode: "0640"
+      when:
+        - vault_macaroon_secret is not defined or vault_macaroon_secret | length == 0
+        - not _macaroon_stat.stat.exists
+        - _macaroon_generated is not skipped
+      no_log: true
+
+    - name: Set macaroon secret file permissions
+      ansible.builtin.file:
+        path: "{{ xrootd_macaroon_secret_file }}"
+        owner: root
+        group: xrootd
+        mode: "0640"
+
+- name: Deploy SciTokens configuration
+  ansible.builtin.template:
+    src: scitokens.cfg.j2
+    dest: /etc/xrootd/scitokens.cfg
+    owner: xrootd
+    group: xrootd
+    mode: "0640"
+  when: xrootd_scitokens_enabled | bool
+  notify: Restart xrootd

@@ -1,0 +1,14 @@
+---
+# Phase 2: HA Redirector — variables pre-defined for when the role is implemented.
+# See ROADMAP.md for the planned implementation.
+
+# Port the redirector listens on
+xrootd_redirector_port: 1094
+
+# Data servers that register with this redirector
+xrootd_redirector_data_servers: []
+# - mydata1.example.org
+# - mydata2.example.org
+
+# FQDN of the secondary redirector for active-active HA pairing
+xrootd_redirector_ha_pair: ""

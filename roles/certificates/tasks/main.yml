@@ -1,0 +1,46 @@
+---
+# Certificate provisioning.
+#
+# Output contract — all modes guarantee these files exist after this role runs:
+#   {{ xrootd_cert_file }}  — server certificate (PEM)
+#   {{ xrootd_key_file }}   — private key (PEM, mode 0600, owner xrootd)
+#   {{ xrootd_ca_file }}    — CA bundle (PEM)
+
+- name: Ensure TLS directory exists
+  ansible.builtin.file:
+    path: "{{ xrootd_cert_dir }}"
+    state: directory
+    owner: xrootd
+    group: xrootd
+    mode: "0750"
+
+- name: Provision self-signed certificate
+  ansible.builtin.include_tasks: self_signed.yml
+  when: xrootd_cert_mode == 'self_signed'
+
+- name: Provision Let's Encrypt certificate via certbot
+  ansible.builtin.include_tasks: certbot.yml
+  when: xrootd_cert_mode in ['certbot_staging', 'certbot_production']
+
+- name: Deploy externally provided certificate
+  ansible.builtin.include_tasks: external.yml
+  when: xrootd_cert_mode == 'external'
+
+# --- Post-condition assertions — every mode must satisfy these -------------- #
+
+- name: Stat certificate file
+  ansible.builtin.stat:
+    path: "{{ xrootd_cert_file }}"
+  register: _cert_stat
+
+- name: Fail if certificate file is missing
+  ansible.builtin.fail:
+    msg: "Certificate not found at {{ xrootd_cert_file }} after certificates role ran."
+  when: not _cert_stat.stat.exists
+
+- name: Enforce private key permissions (0600, owner xrootd)
+  ansible.builtin.file:
+    path: "{{ xrootd_key_file }}"
+    owner: xrootd
+    group: xrootd
+    mode: "0600"

@@ -1,0 +1,100 @@
+---
+# Deploy a certificate supplied by the operator.
+#
+# Two sub-modes (evaluated in order):
+#
+#   Vault content mode (preferred):
+#     Set vault_xrootd_ext_cert and vault_xrootd_ext_key in vault.yml.
+#     The private key is written directly to the target and never exists as a
+#     plaintext file on the Ansible controller.
+#
+#   Controller path mode:
+#     Set xrootd_ext_cert_src and xrootd_ext_key_src to file paths on the
+#     Ansible controller. Useful when certs are already managed externally.
+
+- name: Determine external cert sub-mode
+  ansible.builtin.set_fact:
+    _ext_use_vault: >-
+      {{ (vault_xrootd_ext_cert is defined and vault_xrootd_ext_cert | length > 0) and
+         (vault_xrootd_ext_key  is defined and vault_xrootd_ext_key  | length > 0) }}
+
+- name: Assert that a cert source is configured
+  ansible.builtin.assert:
+    that:
+      - _ext_use_vault | bool or
+        (xrootd_ext_cert_src | length > 0 and xrootd_ext_key_src | length > 0)
+    fail_msg: >
+      External cert mode requires either:
+        vault_xrootd_ext_cert + vault_xrootd_ext_key  (vault content — recommended), or
+        xrootd_ext_cert_src   + xrootd_ext_key_src    (controller path).
+
+# --- Vault content mode ----------------------------------------------------- #
+
+- name: Deploy certificate from vault content
+  ansible.builtin.copy:
+    content: "{{ vault_xrootd_ext_cert }}"
+    dest: "{{ xrootd_cert_file }}"
+    owner: xrootd
+    group: xrootd
+    mode: "0644"
+  when: _ext_use_vault | bool
+  no_log: true
+  notify: Restart xrootd
+
+- name: Deploy private key from vault content
+  ansible.builtin.copy:
+    content: "{{ vault_xrootd_ext_key }}"
+    dest: "{{ xrootd_key_file }}"
+    owner: xrootd
+    group: xrootd
+    mode: "0600"
+  when: _ext_use_vault | bool
+  no_log: true
+  notify: Restart xrootd
+
+- name: Deploy CA bundle from vault content (optional)
+  ansible.builtin.copy:
+    content: "{{ vault_xrootd_ext_ca }}"
+    dest: "{{ xrootd_ca_file }}"
+    owner: xrootd
+    group: xrootd
+    mode: "0644"
+  when:
+    - _ext_use_vault | bool
+    - vault_xrootd_ext_ca is defined
+    - vault_xrootd_ext_ca | length > 0
+  no_log: true
+
+# --- Controller path mode --------------------------------------------------- #
+
+- name: Deploy certificate from controller path
+  ansible.builtin.copy:
+    src: "{{ xrootd_ext_cert_src }}"
+    dest: "{{ xrootd_cert_file }}"
+    owner: xrootd
+    group: xrootd
+    mode: "0644"
+  when: not _ext_use_vault | bool
+  notify: Restart xrootd
+
+- name: Deploy private key from controller path
+  ansible.builtin.copy:
+    src: "{{ xrootd_ext_key_src }}"
+    dest: "{{ xrootd_key_file }}"
+    owner: xrootd
+    group: xrootd
+    mode: "0600"
+  when: not _ext_use_vault | bool
+  no_log: true
+  notify: Restart xrootd
+
+- name: Deploy CA bundle from controller path (optional)
+  ansible.builtin.copy:
+    src: "{{ xrootd_ext_ca_src }}"
+    dest: "{{ xrootd_ca_file }}"
+    owner: xrootd
+    group: xrootd
+    mode: "0644"
+  when:
+    - not _ext_use_vault | bool
+    - xrootd_ext_ca_src | length > 0

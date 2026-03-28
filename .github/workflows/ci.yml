@@ -1,0 +1,121 @@
+---
+name: CI
+
+on:
+  push:
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Job 1: Lint — yamllint + ansible-lint
+  # --------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install lint dependencies
+        run: pip install yamllint ansible ansible-lint
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Run yamllint
+        run: yamllint .
+
+      - name: Run ansible-lint
+        run: ansible-lint
+
+  # --------------------------------------------------------------------------
+  # Job 2: Syntax check — fast validation without running against real hosts
+  # --------------------------------------------------------------------------
+  syntax-check:
+    name: Syntax Check
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Create minimal test inventory
+        run: |
+          mkdir -p /tmp/test-inventory
+          cat > /tmp/test-inventory/hosts.yml << 'EOF'
+          ---
+          all:
+            children:
+              xrootd_servers:
+                hosts:
+                  testhost:
+                    ansible_connection: local
+          EOF
+
+      - name: Syntax check — site.yml
+        run: >
+          ansible-playbook site.yml
+          --syntax-check
+          -i /tmp/test-inventory/hosts.yml
+
+      - name: Syntax check — playbooks/certificates.yml
+        run: >
+          ansible-playbook playbooks/certificates.yml
+          --syntax-check
+          -i /tmp/test-inventory/hosts.yml
+
+  # --------------------------------------------------------------------------
+  # Job 3: Molecule — full converge + verify inside a Docker container
+  #
+  # Matrix is pre-configured for all target platforms; only Rocky 9 is active.
+  # To expand coverage, uncomment additional entries under matrix.distro.
+  # --------------------------------------------------------------------------
+  molecule:
+    name: "Molecule (${{ matrix.distro }})"
+    runs-on: ubuntu-latest
+    needs: syntax-check
+
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - rockylinux9
+          # - rockylinux8   # Rocky Linux 8
+          # - ubuntu2204    # Ubuntu 22.04 LTS (Jammy)
+          # - ubuntu2404    # Ubuntu 24.04 LTS (Noble)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Molecule and dependencies
+        run: pip install ansible "molecule-plugins[docker]" docker
+
+      - name: Install Ansible collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Run Molecule
+        run: molecule test
+        env:
+          MOLECULE_DISTRO: ${{ matrix.distro }}
+        working-directory: ${{ github.workspace }}

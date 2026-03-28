@@ -1,0 +1,25 @@
+---
+# Install and enable chrony for NTP time synchronisation.
+# Accurate time is required for TLS certificate validation and JWT token auth.
+# Service name differs between Rocky (chronyd) and Ubuntu (chrony).
+
+- name: Set chrony service name (Rocky)
+  ansible.builtin.set_fact:
+    _chrony_service: chronyd
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Set chrony service name (Ubuntu)
+  ansible.builtin.set_fact:
+    _chrony_service: chrony
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install chrony
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: Enable and start chrony
+  ansible.builtin.systemd:
+    name: "{{ _chrony_service }}"
+    state: started
+    enabled: true

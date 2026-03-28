@@ -1,0 +1,43 @@
+# XRootD standalone server — managed by Ansible, do not edit manually.
+# Host: {{ inventory_hostname }}
+
+all.export {{ xrootd_data_path }}
+all.sitename {{ xrootd_site_name }}
+
+xrd.port {{ xrootd_port }}
+{% if xrootd_bind_address %}
+xrd.network nodnr bind {{ xrootd_bind_address }}
+{% endif %}
+
+{% if xrootd_tls_enabled %}
+xrd.tls {{ xrootd_cert_file }} {{ xrootd_key_file }}
+xrd.tlsca certfile {{ xrootd_ca_file }}
+{% endif %}
+
+{% if xrootd_http_enabled %}
+xrd.protocol http:{{ xrootd_port }} libXrdHttp.so
+http.header2cgi Authorization authz
+{% if xrootd_http_tpc_enabled %}
+http.exthandler xrdtpc libXrdHttpTPC.so
+{% endif %}
+http.staticpreload http.robotstxt /etc/xrootd/robots.txt
+{% endif %}
+
+{% if xrootd_macaroons_enabled %}
+ofs.authlib ++ libXrdMacaroons.so
+macaroons.secretkey {{ xrootd_macaroon_secret_file }}
+{% endif %}
+
+{% if xrootd_scitokens_enabled %}
+ofs.authlib ++ libXrdAccSciTokens.so config=/etc/xrootd/scitokens.cfg
+{% endif %}
+
+{% if xrootd_auth_enabled %}
+acc.authdb {{ xrootd_auth_dir }}/Authfile
+ofs.authorize
+{% endif %}
+
+{% if xrootd_monitoring_enabled %}
+xrd.monitor all auth flush 30s window 5s fstat 60 lfn ops xfr 5 \
+  dest redir fstat info user {{ xrootd_monitoring_host }}:{{ xrootd_monitoring_port }}
+{% endif %}

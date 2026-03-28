@@ -1,0 +1,39 @@
+---
+extends: default
+
+rules:
+  # Ansible files commonly exceed 80 chars; warn rather than fail
+  line-length:
+    max: 160
+    level: warning
+
+  # Allow both 'true/false' and 'yes/no' — Ansible uses both
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']
+    check-keys: false
+
+  # Allow aligned values in defaults files (e.g. key:   value)
+  colons:
+    max-spaces-before: 0
+    max-spaces-after: -1   # -1 = no limit; permits column-aligned assignments
+
+  # Required by ansible-lint production profile
+  comments-indentation: false
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+
+  # Single space before inline comments is sufficient
+  comments:
+    min-spaces-from-content: 1
+
+  # Ansible task lists start with a dash at column 0
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+ignore: |
+  .git/
+  molecule/

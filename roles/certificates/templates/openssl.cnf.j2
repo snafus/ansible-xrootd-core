@@ -1,0 +1,25 @@
+# OpenSSL configuration for self-signed XRootD server certificate.
+# Managed by Ansible — do not edit manually.
+# Includes Subject Alternative Names (SANs) for FQDN, short hostname, and IP.
+
+[req]
+default_bits       = {{ xrootd_cert_keysize }}
+prompt             = no
+default_md         = sha256
+distinguished_name = dn
+x509_extensions    = v3_req
+
+[dn]
+C  = {{ xrootd_cert_country }}
+O  = {{ xrootd_cert_org }}
+CN = {{ xrootd_cert_cn }}
+
+[v3_req]
+subjectAltName   = @alt_names
+keyUsage         = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+
+[alt_names]
+DNS.1 = {{ ansible_facts['fqdn'] }}
+DNS.2 = {{ ansible_facts['hostname'] }}
+IP.1  = {{ ansible_facts['default_ipv4']['address'] }}

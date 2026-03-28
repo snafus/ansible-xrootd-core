@@ -1,0 +1,16 @@
+---
+# Example inventory — copy to hosts.yml and edit
+# hosts.yml is gitignored; this example is always committed
+all:
+  children:
+    xrootd_servers:
+      hosts:
+        # Single standalone server (minimal config)
+        myserver.example.org:
+          ansible_user: rocky           # or: ubuntu
+
+        # Server with explicit overrides
+        # myserver2.example.org:
+        #   ansible_user: ubuntu
+        #   xrootd_data_path: /mnt/data/xrootd
+        #   xrootd_cert_mode: certbot_production

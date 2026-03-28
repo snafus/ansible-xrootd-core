@@ -1,0 +1,27 @@
+---
+# Certificate management only — use for renewals without a full redeploy
+# Usage: ansible-playbook playbooks/certificates.yml
+- name: Manage XRootD certificates
+  hosts: xrootd_servers
+  become: true
+  roles:
+    - role: certificates
+
+# Restart xrootd if it is already running, so new certs are picked up
+- name: Restart XRootD if running
+  hosts: xrootd_servers
+  become: true
+  tasks:
+    - name: Check if xrootd service is active
+      ansible.builtin.systemd:
+        name: "xrootd@{{ xrootd_config_name | default('standalone') }}"
+      register: xrootd_service_state
+      failed_when: false
+
+    - name: Restart xrootd to load new certificate
+      ansible.builtin.systemd:
+        name: "xrootd@{{ xrootd_config_name | default('standalone') }}"
+        state: restarted
+      when:
+        - not xrootd_service_state.failed
+        - xrootd_service_state.status.ActiveState == 'active'

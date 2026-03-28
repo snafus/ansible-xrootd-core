@@ -1,0 +1,10 @@
+---
+- name: Reload firewalld
+  ansible.builtin.command: firewall-cmd --reload
+  changed_when: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Reload ufw
+  community.general.ufw:
+    state: reloaded
+  when: ansible_facts['os_family'] == 'Debian'

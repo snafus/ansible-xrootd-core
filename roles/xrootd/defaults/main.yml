@@ -1,0 +1,86 @@
+---
+# Config profile name — determines which template is deployed and which
+# systemd unit is managed:
+#   /etc/xrootd/xrootd-{{ xrootd_config_name }}.cfg
+#   systemd: xrootd@{{ xrootd_config_name }}
+# Options: standalone | server | redirector
+xrootd_config_name: standalone
+
+# --- Paths ------------------------------------------------------------------
+xrootd_data_path:   /data/xrootd         # exported namespace root
+xrootd_admin_path:  /var/spool/xrootd    # admin socket directory
+xrootd_run_path:    /run/xrootd          # PID files
+xrootd_log_path:    /var/log/xrootd      # log files
+xrootd_auth_dir:    /opt/xrd/etc         # Authfile and related config
+
+# --- Network ----------------------------------------------------------------
+xrootd_port:         1094   # XRootD protocol + HTTP port
+xrootd_bind_address: ""     # empty = bind all interfaces
+
+# --- TLS --------------------------------------------------------------------
+# Populated by the certificates role. Override only if managing certs manually.
+xrootd_tls_enabled: true
+xrootd_cert_file:   /etc/xrootd/tls/server.crt
+xrootd_key_file:    /etc/xrootd/tls/server.key
+# CA bundle PEM file used for peer verification.
+# For self-signed mode: the certificates role writes the server cert here.
+# For production: point this to your site CA bundle (e.g. a concatenated PEM).
+# Grid-style certdir (/etc/grid-security/certificates) is a future roadmap item.
+xrootd_ca_file:     /etc/xrootd/tls/ca.crt
+
+# --- Features (all opt-in — explicitly enable what you need) ----------------
+xrootd_http_enabled:       false   # HTTP/WebDAV protocol (requires xrootd-server with HTTP plugin)
+xrootd_http_tpc_enabled:   false   # Third Party Copy (requires HTTP enabled)
+xrootd_auth_enabled:       false   # Authfile-based access control
+xrootd_scitokens_enabled:  false   # SciTokens / WLCG JWT token auth
+xrootd_macaroons_enabled:  false   # Macaroon bearer token auth
+xrootd_monitoring_enabled: false   # UDP monitoring export
+
+# --- Macaroon secret --------------------------------------------------------
+# If vault_macaroon_secret is set: that value is written to the file (required
+# for multi-node deployments where tokens must validate across nodes).
+# If unset and the file does not exist: a random secret is auto-generated
+# (standalone only — not safe for clusters).
+xrootd_macaroon_secret_file: /etc/xrootd/macaroon-secret
+
+# --- SciTokens --------------------------------------------------------------
+xrootd_scitokens_audience: "https://wlcg.cern.ch/jwt/v1/any"
+xrootd_scitokens_issuers: []
+# Example issuer entry:
+# - name:         my-iam
+#   url:          https://iam.example.org/
+#   base_path:    /
+#   default_user: xrootd
+
+# --- Authfile entries -------------------------------------------------------
+xrootd_auth_entries: []
+# Example entry:
+# - type: g            # u=unix user, g=group, h=hostname
+#   name: /ska
+#   path: /data/xrootd
+#   permissions: rl    # r=read, l=list, w=write, d=delete, a=all
+
+# --- Monitoring -------------------------------------------------------------
+xrootd_monitoring_host: ""
+xrootd_monitoring_port: 9931
+
+# --- Clustered / server mode ------------------------------------------------
+xrootd_redirector_host: ""
+xrootd_redirector_port: 1094
+
+# --- Site identity ----------------------------------------------------------
+xrootd_site_name: "{{ inventory_hostname }}"
+
+# --- Package lists ----------------------------------------------------------
+# Optional feature packages are appended in install.yml based on enabled flags.
+_xrootd_base_packages_rocky:
+  - xrootd
+  - xrootd-server
+  - xrootd-client
+  - xrootd-libs
+  - python3-xrootd
+
+_xrootd_base_packages_ubuntu:
+  - xrootd-server
+  - xrootd-client
+  - python3-xrootd

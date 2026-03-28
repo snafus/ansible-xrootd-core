@@ -1,0 +1,40 @@
+---
+# Group variables for xrootd_servers
+# Override role defaults here. All values shown are optional —
+# the roles have sensible defaults for everything.
+#
+# See roles/xrootd/defaults/main.yml and roles/certificates/defaults/main.yml
+# for the full list of available variables.
+
+# --- Required --------------------------------------------------------------- #
+
+xrootd_data_path: /data/xrootd
+
+# --- Certificate mode ------------------------------------------------------- #
+# Options: self_signed | certbot_staging | certbot_production | external
+# Default: self_signed
+
+# xrootd_cert_mode: self_signed
+
+# Certbot modes require an email address — set in vault.yml:
+# xrootd_certbot_email: "{{ vault_certbot_email }}"
+
+# --- Optional features (all default to false — explicitly opt in) ----------- #
+
+# xrootd_http_enabled: true       # HTTP/WebDAV; requires xrootd-server HTTP plugin
+# xrootd_http_tpc_enabled: true   # Third Party Copy; requires HTTP enabled
+# xrootd_macaroons_enabled: true
+# xrootd_scitokens_enabled: true
+# xrootd_auth_enabled: true
+# xrootd_monitoring_enabled: true
+
+# --- SciTokens -------------------------------------------------------------- #
+# xrootd_scitokens_audience: "https://wlcg.cern.ch/jwt/v1/any"
+# xrootd_scitokens_issuers:
+#   - name: my-iam
+#     url: https://iam.example.org/
+#     base_path: /
+#     default_user: xrootd
+
+# --- Site identity ---------------------------------------------------------- #
+# xrootd_site_name: "{{ inventory_hostname }}"

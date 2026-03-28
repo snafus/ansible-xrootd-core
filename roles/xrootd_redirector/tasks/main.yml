@@ -1,0 +1,10 @@
+---
+# Phase 2 stub — this role is not yet implemented.
+# See ROADMAP.md Phase 2 for the planned HA redirector implementation.
+
+- name: XRootD redirector role is not yet implemented
+  ansible.builtin.fail:
+    msg: >
+      The xrootd_redirector role is a Phase 2 stub and has not been implemented yet.
+      See ROADMAP.md for the planned implementation covering cmsd, HA redirector
+      pairs, and multi-node data server registration.

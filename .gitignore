@@ -1,0 +1,31 @@
+# Ansible
+*.retry
+inventory/hosts.yml
+
+# Vault — never commit plaintext vault files
+inventory/group_vars/**/vault.yml
+!inventory/group_vars/**/vault.yml.example
+
+# Secrets
+*.pem
+*.key
+*.crt
+macaroon-secret
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Molecule runtime artefacts (not the scenario definitions)
+.molecule/
+molecule/default/.cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store

@@ -1,0 +1,24 @@
+---
+# Open XRootD ports in ufw.
+
+- name: Allow XRootD/HTTP port (TCP)
+  community.general.ufw:
+    rule: allow
+    port: "{{ xrootd_port }}"
+    proto: tcp
+
+# UDP on the same port is used by the xrd.monitor UDP stats export.
+- name: Allow XRootD monitoring port (UDP)
+  community.general.ufw:
+    rule: allow
+    port: "{{ xrootd_port }}"
+    proto: udp
+  when: xrootd_monitoring_enabled | bool
+
+# certbot standalone mode needs port 80 open for the ACME HTTP-01 challenge.
+- name: Allow HTTP (port 80) for certbot ACME challenge
+  community.general.ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+  when: xrootd_cert_mode is defined and xrootd_cert_mode in ['certbot_staging', 'certbot_production']

@@ -1,0 +1,62 @@
+---
+# Ubuntu repository setup.
+# Adds the CERN XRootD apt repository with a properly dearmored GPG key.
+# Supports Ubuntu 22.04 (jammy) and 24.04 (noble).
+
+- name: Assert Ubuntu version is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['distribution_release'] in ['jammy', 'noble']
+    fail_msg: >
+      Unsupported Ubuntu version.
+      Supported: 22.04 (jammy), 24.04 (noble).
+      Got: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} ({{ ansible_facts['distribution_release'] }})
+
+- name: Install apt prerequisites
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - apt-transport-https
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: true
+
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+# Use get_url to fetch the key, then a separate shell task to dearmor it.
+# This avoids curl + pipe which triggers risky-shell-pipe and command-instead-of-module.
+- name: Download CERN XRootD GPG key
+  ansible.builtin.get_url:
+    url: https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt
+    dest: /tmp/xrootd-gpg-key.asc
+    mode: "0644"
+  when: not (ansible_check_mode | bool)
+
+- name: Dearmor CERN XRootD GPG key
+  ansible.builtin.command:
+    cmd: gpg --dearmor -o /etc/apt/keyrings/xrootd.gpg /tmp/xrootd-gpg-key.asc
+    creates: /etc/apt/keyrings/xrootd.gpg
+  changed_when: true
+
+- name: Add CERN XRootD apt repository
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by=/etc/apt/keyrings/xrootd.gpg]
+      https://xrootd.web.cern.ch/ubuntu {{ ansible_facts['distribution_release'] }} stable
+    filename: xrootd
+    state: present
+    update_cache: true
+
+- name: Full system update (opt-in via common_update_system or --tags update)
+  ansible.builtin.apt:
+    upgrade: dist
+    autoclean: true
+    autoremove: true
+  when: common_update_system | bool
+  tags: [update, never]

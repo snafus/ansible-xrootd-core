@@ -1,0 +1,93 @@
+---
+# Obtain a TLS certificate from Let's Encrypt using certbot in standalone mode.
+# Standalone mode requires port 80 to be publicly reachable.
+# certbot_staging uses the staging ACME endpoint — no rate limits, untrusted CA.
+
+- name: Assert certbot email is configured
+  ansible.builtin.assert:
+    that:
+      - xrootd_certbot_email != ''
+    fail_msg: >
+      xrootd_certbot_email must be set for certbot cert modes.
+      Add vault_certbot_email to your vault.yml file.
+
+- name: Install certbot (Rocky — from EPEL)
+  ansible.builtin.dnf:
+    name: certbot
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install certbot (Ubuntu)
+  ansible.builtin.apt:
+    name: certbot
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Check if certbot certificate already exists
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/fullchain.pem"
+  register: _certbot_cert
+
+- name: Obtain certificate from Let's Encrypt
+  ansible.builtin.command:
+    cmd: >
+      certbot certonly
+      --standalone
+      --non-interactive
+      --agree-tos
+      --email {{ xrootd_certbot_email }}
+      -d {{ xrootd_certbot_domain }}
+      {{ '--staging' if xrootd_cert_mode == 'certbot_staging' else '' }}
+  when: not _certbot_cert.stat.exists
+  changed_when: true
+
+# Symlink certbot's managed paths into the standard XRootD TLS directory.
+# certbot handles rotation under /etc/letsencrypt/live/; symlinks stay valid.
+- name: Symlink certificate to XRootD TLS directory
+  ansible.builtin.file:
+    src: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/fullchain.pem"
+    dest: "{{ xrootd_cert_file }}"
+    state: link
+    force: true
+
+- name: Symlink private key to XRootD TLS directory
+  ansible.builtin.file:
+    src: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/privkey.pem"
+    dest: "{{ xrootd_key_file }}"
+    state: link
+    force: true
+
+- name: Symlink CA chain to XRootD TLS directory
+  ansible.builtin.file:
+    src: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/chain.pem"
+    dest: "{{ xrootd_ca_file }}"
+    state: link
+    force: true
+
+# Post-renewal hook restarts xrootd so it picks up the new certificate.
+- name: Install certbot post-renewal hook for xrootd restart
+  ansible.builtin.copy:
+    dest: /etc/letsencrypt/renewal-hooks/post/restart-xrootd.sh
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      # Restart xrootd after certbot renews the certificate.
+      # Managed by Ansible — do not edit manually.
+      systemctl restart xrootd@{{ xrootd_config_name | default('standalone') }} || true
+
+# Prefer systemd timer; fall back to cron on distros where it is absent.
+- name: Enable certbot systemd renewal timer
+  ansible.builtin.systemd:
+    name: certbot.timer
+    state: started
+    enabled: true
+  failed_when: false
+
+- name: Install certbot renewal cron job (fallback if systemd timer absent)
+  ansible.builtin.cron:
+    name: certbot-renew
+    minute: "0"
+    hour: "3"
+    day: "*/7"
+    job: "certbot renew --quiet"
+    user: root

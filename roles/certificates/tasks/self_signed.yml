@@ -1,0 +1,65 @@
+---
+# Generate a self-signed TLS certificate with Subject Alternative Names (SANs).
+# The certificate includes both DNS names and the primary IP address.
+# Regeneration is skipped if a valid cert with > 7 days remaining already exists.
+
+- name: Check if certificate already exists
+  ansible.builtin.stat:
+    path: "{{ xrootd_cert_file }}"
+  register: _existing_cert
+
+# openssl x509 -checkend N returns 0 if cert is valid for > N seconds.
+# 604800 seconds = 7 days — trigger renewal before expiry.
+- name: Check certificate expiry window
+  ansible.builtin.command:
+    cmd: "openssl x509 -noout -checkend 604800 -in {{ xrootd_cert_file }}"
+  register: _cert_expiry
+  changed_when: false
+  failed_when: false
+  when: _existing_cert.stat.exists
+
+- name: Determine whether to (re)generate certificate
+  ansible.builtin.set_fact:
+    _regen_cert: >-
+      {{ not _existing_cert.stat.exists or
+         (_cert_expiry.rc is defined and _cert_expiry.rc != 0) }}
+
+- name: Deploy OpenSSL config (includes SANs for FQDN, hostname, and IP)
+  ansible.builtin.template:
+    src: openssl.cnf.j2
+    dest: /tmp/xrootd-openssl.cnf
+    mode: "0644"
+  when: _regen_cert | bool
+
+- name: Generate RSA private key
+  ansible.builtin.command:
+    cmd: "openssl genrsa -out {{ xrootd_key_file }} {{ xrootd_cert_keysize }}"
+  when: _regen_cert | bool
+  changed_when: true
+  notify: Restart xrootd
+
+- name: Generate self-signed certificate
+  ansible.builtin.command:
+    cmd: >
+      openssl req -new -x509
+      -days {{ xrootd_cert_days }}
+      -key {{ xrootd_key_file }}
+      -out {{ xrootd_cert_file }}
+      -config /tmp/xrootd-openssl.cnf
+  when: _regen_cert | bool
+  changed_when: true
+
+- name: Copy certificate as CA bundle (self-signed is its own CA)
+  ansible.builtin.copy:
+    src: "{{ xrootd_cert_file }}"
+    dest: "{{ xrootd_ca_file }}"
+    remote_src: true
+    owner: xrootd
+    group: xrootd
+    mode: "0644"
+  when: _regen_cert | bool
+
+- name: Remove temporary OpenSSL config
+  ansible.builtin.file:
+    path: /tmp/xrootd-openssl.cnf
+    state: absent

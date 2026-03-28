@@ -1,0 +1,32 @@
+---
+# Dispatcher: validate OS, run distro-specific setup, then shared tasks.
+
+- name: Validate supported OS
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in ['RedHat', 'Debian']
+    fail_msg: >
+      Unsupported OS family: {{ ansible_facts['os_family'] }}.
+      Supported: RedHat (Rocky 8/9), Debian (Ubuntu 22.04/24.04).
+
+- name: Rocky Linux repository setup
+  ansible.builtin.include_tasks: rocky.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu repository setup
+  ansible.builtin.include_tasks: ubuntu.yml
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install common utility packages
+  ansible.builtin.include_tasks: packages.yml
+
+- name: Set up firewall service (Rocky)
+  ansible.builtin.include_tasks: firewall_rocky.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Set up firewall service (Ubuntu)
+  ansible.builtin.include_tasks: firewall_ubuntu.yml
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Configure time synchronisation
+  ansible.builtin.include_tasks: chrony.yml

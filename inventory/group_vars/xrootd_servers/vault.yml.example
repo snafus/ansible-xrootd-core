@@ -1,0 +1,32 @@
+---
+# Vault secrets template — copy to vault.yml and encrypt with ansible-vault
+#
+#   ansible-vault encrypt inventory/group_vars/xrootd_servers/vault.yml
+#
+# vault.yml is gitignored. This example file is always committed.
+
+# Macaroon secret — shared across all nodes in a cluster.
+# Leave empty ("") to auto-generate per-node (standalone only).
+vault_macaroon_secret: ""
+
+# Required when xrootd_cert_mode is certbot_staging or certbot_production.
+vault_certbot_email: ""
+
+# External certificate mode — embed PEM content directly (preferred over
+# file paths; private key is never written to disk in plaintext).
+# Required when xrootd_cert_mode is external.
+vault_xrootd_ext_cert: |
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----
+
+vault_xrootd_ext_key: |
+  -----BEGIN PRIVATE KEY-----
+  ...
+  -----END PRIVATE KEY-----
+
+# Optional CA bundle for external mode
+vault_xrootd_ext_ca: |
+  -----BEGIN CERTIFICATE-----
+  ...
+  -----END CERTIFICATE-----

@@ -1,0 +1,28 @@
+---
+- name: Install XRootD packages
+  ansible.builtin.include_tasks: install.yml
+  tags: [install]
+
+- name: Create required directories
+  ansible.builtin.include_tasks: directories.yml
+  tags: [configure]
+
+- name: Open firewall ports
+  ansible.builtin.include_tasks: firewall.yml
+  tags: [configure, firewall]
+
+- name: Deploy XRootD configuration
+  ansible.builtin.include_tasks: configure.yml
+  tags: [configure]
+
+- name: Deploy authorisation file
+  ansible.builtin.include_tasks: auth.yml
+  tags: [configure, auth]
+
+- name: Manage XRootD service
+  ansible.builtin.include_tasks: service.yml
+  tags: [service]
+
+- name: Validate XRootD is running correctly
+  ansible.builtin.include_tasks: validate.yml
+  tags: [validate]

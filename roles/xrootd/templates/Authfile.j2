@@ -1,0 +1,25 @@
+# XRootD Authfile — access control entries
+# Managed by Ansible — do not edit manually.
+#
+# Format:  <type> <identity> <path> <permissions>
+#
+# Types:
+#   u  unix username
+#   g  group name
+#   h  hostname or IP
+#
+# Permissions:
+#   r  read       l  list
+#   w  write      d  delete
+#   a  all        n  none
+#
+# Example:
+#   g /ska /data/xrootd rl     # group /ska may read and list /data/xrootd
+
+{% if xrootd_auth_entries %}
+{% for entry in xrootd_auth_entries %}
+{{ entry.type }} {{ entry.name }} {{ entry.path }} {{ entry.permissions }}
+{% endfor %}
+{% else %}
+# No entries configured. Set xrootd_auth_entries in group_vars.
+{% endif %}

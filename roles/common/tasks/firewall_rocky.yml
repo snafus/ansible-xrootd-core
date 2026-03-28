@@ -1,0 +1,15 @@
+---
+# Install and enable firewalld on Rocky Linux.
+# Port rules are NOT added here — the xrootd role opens its own ports.
+# This task only ensures the firewall service is present and running.
+
+- name: Install firewalld
+  ansible.builtin.dnf:
+    name: firewalld
+    state: present
+
+- name: Enable and start firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: true

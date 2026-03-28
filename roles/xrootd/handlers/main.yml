@@ -1,0 +1,12 @@
+---
+- name: Restart xrootd
+  ansible.builtin.systemd:
+    name: "xrootd@{{ xrootd_config_name }}"
+    state: restarted
+
+# cmsd must also restart when config changes in clustered mode.
+- name: Restart cmsd
+  ansible.builtin.systemd:
+    name: "cmsd@{{ xrootd_config_name }}"
+    state: restarted
+  when: xrootd_config_name != 'standalone'

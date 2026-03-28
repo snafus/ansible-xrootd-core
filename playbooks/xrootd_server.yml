@@ -1,0 +1,11 @@
+---
+# Full XRootD server deployment
+# Runs: common → certificates → xrootd
+# Usage: ansible-playbook playbooks/xrootd_server.yml
+- name: Deploy XRootD Server
+  hosts: xrootd_servers
+  become: true
+  roles:
+    - role: common
+    - role: certificates
+    - role: xrootd

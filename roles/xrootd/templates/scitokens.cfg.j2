@@ -1,0 +1,29 @@
+# SciTokens configuration for XRootD.
+# Managed by Ansible — do not edit manually.
+#
+# Each [Issuer <name>] block configures a trusted token issuer.
+# The 'iss' claim in the JWT must match the issuer URL exactly.
+
+[Global]
+# passthrough: requests with no token proceed to the next auth layer
+# deny: requests with no token are rejected immediately
+onmissing = passthrough
+
+# Audience claim the token must contain (matches 'aud' in the JWT)
+audience = {{ xrootd_scitokens_audience }}
+
+{% for issuer in xrootd_scitokens_issuers %}
+[Issuer {{ issuer.name }}]
+# Issuer URL — must match the 'iss' claim in presented JWTs
+issuer = {{ issuer.url }}
+
+# Only tokens with paths under base_path are accepted from this issuer
+base_path = {{ issuer.base_path | default('/') }}
+
+# Whether to use the token 'sub' claim for local Unix user mapping
+map_subject = {{ issuer.map_subject | default('false') | string | lower }}
+
+# Local Unix user to run file operations as for this issuer's tokens
+default_user = {{ issuer.default_user | default('xrootd') }}
+
+{% endfor %}

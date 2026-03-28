@@ -1,0 +1,12 @@
+---
+# Open XRootD-specific ports in the system firewall.
+# The common role installs and enables the firewall service;
+# this task opens only the ports this XRootD instance needs.
+
+- name: Open firewall ports (Rocky)
+  ansible.builtin.include_tasks: firewall_rocky.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Open firewall ports (Ubuntu)
+  ansible.builtin.include_tasks: firewall_ubuntu.yml
+  when: ansible_facts['os_family'] == 'Debian'
