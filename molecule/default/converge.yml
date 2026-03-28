@@ -1,5 +1,6 @@
 ---
 # Molecule converge — run the full deployment against the test container.
+# Role list must mirror playbooks/xrootd_server.yml — keep them in sync.
 - name: Converge
   hosts: all
   become: true

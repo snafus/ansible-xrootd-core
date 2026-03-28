@@ -49,6 +49,7 @@
     dest: "{{ xrootd_cert_file }}"
     state: link
     force: true
+  notify: Restart xrootd
 
 - name: Symlink private key to XRootD TLS directory
   ansible.builtin.file:
@@ -56,6 +57,7 @@
     dest: "{{ xrootd_key_file }}"
     state: link
     force: true
+  notify: Restart xrootd
 
 - name: Symlink CA chain to XRootD TLS directory
   ansible.builtin.file:
@@ -63,6 +65,7 @@
     dest: "{{ xrootd_ca_file }}"
     state: link
     force: true
+  notify: Restart xrootd
 
 # Post-renewal hook restarts xrootd so it picks up the new certificate.
 - name: Install certbot post-renewal hook for xrootd restart
@@ -75,15 +78,17 @@
       # Managed by Ansible — do not edit manually.
       systemctl restart xrootd@{{ xrootd_config_name | default('standalone') }} || true
 
-# Prefer systemd timer; fall back to cron on distros where it is absent.
+# Try the systemd timer first; fall back to cron only if it fails to start
+# (e.g. on containers or stripped-down systems without a full systemd).
 - name: Enable certbot systemd renewal timer
   ansible.builtin.systemd:
     name: certbot.timer
     state: started
     enabled: true
-  failed_when: false
+  register: _certbot_timer
+  ignore_errors: true
 
-- name: Install certbot renewal cron job (fallback if systemd timer absent)
+- name: Install certbot renewal cron job (fallback — systemd timer unavailable)
   ansible.builtin.cron:
     name: certbot-renew
     minute: "0"
@@ -91,3 +96,4 @@
     day: "*/7"
     job: "certbot renew --quiet"
     user: root
+  when: _certbot_timer is failed

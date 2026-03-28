@@ -1,4 +1,8 @@
 ---
+- name: Create xrootd user and group
+  ansible.builtin.include_tasks: users.yml
+  tags: [install, users]
+
 - name: Install XRootD packages
   ansible.builtin.include_tasks: install.yml
   tags: [install]
@@ -6,6 +10,10 @@
 - name: Create required directories
   ansible.builtin.include_tasks: directories.yml
   tags: [configure]
+
+- name: Configure log rotation
+  ansible.builtin.include_tasks: logrotate.yml
+  tags: [configure, logrotate]
 
 - name: Open firewall ports
   ansible.builtin.include_tasks: firewall.yml

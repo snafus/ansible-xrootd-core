@@ -9,10 +9,13 @@
     state: present
 
 # Allow SSH first — must happen before ufw is enabled.
+# Use port number rather than application name; the OpenSSH application
+# profile may not be present in minimal/container environments.
 - name: Allow SSH (prevents lockout when ufw is enabled)
   community.general.ufw:
     rule: allow
-    name: OpenSSH
+    port: "22"
+    proto: tcp
 
 - name: Set default policy (deny incoming, allow outgoing)
   community.general.ufw:

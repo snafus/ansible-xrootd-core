@@ -1,0 +1,14 @@
+# XRootD log rotation — managed by Ansible, do not edit manually.
+# copytruncate is used because XRootD's signal handling for log-file reopening
+# is not guaranteed across versions; sending SIGUSR1 risks terminating the daemon
+# if the signal is unhandled. copytruncate truncates the original file in-place
+# so xrootd continues writing to the same open file descriptor without interruption.
+/var/log/xrootd/*.log {
+    {{ xrootd_log_rotate_frequency }}
+    rotate {{ xrootd_log_rotate_count }}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

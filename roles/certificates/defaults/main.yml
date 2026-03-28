@@ -6,6 +6,25 @@
 #   external           : deploy a cert supplied by the operator
 xrootd_cert_mode: self_signed
 
+# --- Service account --------------------------------------------------------
+# Must match xrootd role values — certificates role runs before xrootd role
+# so it cannot rely on xrootd/defaults/main.yml being loaded.
+xrootd_user:  xrootd
+xrootd_group: xrootd
+
+# --- CA trust mode ----------------------------------------------------------
+# Controls how xrd.tlsca is configured (must match xrootd role value):
+#   file   — use xrootd_ca_file (default; correct for self-signed and external modes)
+#   system — symlink OS system CA bundle to xrootd_ca_file
+#   grid   — install trust anchors + fetch-crl, use certdir
+xrootd_ca_mode: file
+xrootd_ca_dir:  /etc/grid-security/certificates
+
+# Grid CA bundle provider (used when xrootd_ca_mode == 'grid'):
+#   egi — EGI IGTF trust anchors; supported on Rocky + Ubuntu
+#   osg — OSG/CILogon trust anchors; Rocky only (US/international grid sites)
+xrootd_ca_bundle_provider: egi
+
 # --- Output paths -----------------------------------------------------------
 # These paths are written by all cert modes and consumed by the xrootd role.
 # Override only if you need a non-standard layout.

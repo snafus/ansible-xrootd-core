@@ -1,19 +1,27 @@
 # XRootD standalone server — managed by Ansible, do not edit manually.
 # Host: {{ inventory_hostname }}
 
+# --- Namespace --------------------------------------------------------------
 all.export {{ xrootd_data_path }}
 all.sitename {{ xrootd_site_name }}
 
+# --- Network ----------------------------------------------------------------
 xrd.port {{ xrootd_port }}
 {% if xrootd_bind_address %}
 xrd.network nodnr bind {{ xrootd_bind_address }}
 {% endif %}
 
+# --- TLS --------------------------------------------------------------------
 {% if xrootd_tls_enabled %}
 xrd.tls {{ xrootd_cert_file }} {{ xrootd_key_file }}
+{% if xrootd_ca_mode == 'grid' %}
+xrd.tlsca certdir {{ xrootd_ca_dir }}
+{% else %}
 xrd.tlsca certfile {{ xrootd_ca_file }}
 {% endif %}
+{% endif %}
 
+# --- HTTP / WebDAV ----------------------------------------------------------
 {% if xrootd_http_enabled %}
 xrd.protocol http:{{ xrootd_port }} libXrdHttp.so
 http.header2cgi Authorization authz
@@ -21,23 +29,42 @@ http.header2cgi Authorization authz
 http.exthandler xrdtpc libXrdHttpTPC.so
 {% endif %}
 http.staticpreload http.robotstxt /etc/xrootd/robots.txt
+{% if xrootd_trace_http %}
+http.trace {{ xrootd_trace_http }}
+{% endif %}
 {% endif %}
 
+# --- Authorisation ----------------------------------------------------------
 {% if xrootd_macaroons_enabled %}
 ofs.authlib ++ libXrdMacaroons.so
 macaroons.secretkey {{ xrootd_macaroon_secret_file }}
+{% if xrootd_macaroon_trace %}
+macaroons.trace {{ xrootd_macaroon_trace }}
 {% endif %}
-
+{% endif %}
 {% if xrootd_scitokens_enabled %}
 ofs.authlib ++ libXrdAccSciTokens.so config=/etc/xrootd/scitokens.cfg
 {% endif %}
-
 {% if xrootd_auth_enabled %}
 acc.authdb {{ xrootd_auth_dir }}/Authfile
 ofs.authorize
 {% endif %}
 
+# --- Monitoring -------------------------------------------------------------
 {% if xrootd_monitoring_enabled %}
+# xrd.monitor: detailed per-operation event stream (e.g. for AAI/traffic analysis)
 xrd.monitor all auth flush 30s window 5s fstat 60 lfn ops xfr 5 \
   dest redir fstat info user {{ xrootd_monitoring_host }}:{{ xrootd_monitoring_port }}
+{% endif %}
+{% if xrootd_reporting_enabled %}
+# xrd.report: periodic summary statistics (e.g. for xrootd_exporter / Prometheus)
+xrd.report {{ xrootd_reporting_host }}:{{ xrootd_reporting_port }} every {{ xrootd_reporting_interval }} all
+{% endif %}
+
+# --- Logging / trace --------------------------------------------------------
+{% if xrootd_trace_xrd %}
+xrd.trace {{ xrootd_trace_xrd }}
+{% endif %}
+{% if xrootd_trace_xrootd %}
+xrootd.trace {{ xrootd_trace_xrootd }}
 {% endif %}

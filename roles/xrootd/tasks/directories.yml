@@ -1,48 +1,34 @@
 ---
 # Create all directories required by XRootD.
-# The xrootd user and group are created automatically by the xrootd package.
-
-- name: Assert xrootd user exists (created by package install)
-  ansible.builtin.getent:
-    database: passwd
-    key: xrootd
 
 - name: Create data export directory
   ansible.builtin.file:
     path: "{{ xrootd_data_path }}"
     state: directory
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0755"
 
 - name: Create admin socket directory
   ansible.builtin.file:
     path: "{{ xrootd_admin_path }}"
     state: directory
-    owner: xrootd
-    group: xrootd
-    mode: "0755"
-
-- name: Create PID file directory
-  ansible.builtin.file:
-    path: "{{ xrootd_run_path }}"
-    state: directory
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0755"
 
 - name: Create log directory
   ansible.builtin.file:
     path: "{{ xrootd_log_path }}"
     state: directory
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0750"
 
 - name: Create auth config directory
   ansible.builtin.file:
     path: "{{ xrootd_auth_dir }}"
     state: directory
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0750"

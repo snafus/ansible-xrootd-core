@@ -1,0 +1,8 @@
+---
+- name: Deploy logrotate configuration for XRootD
+  ansible.builtin.template:
+    src: xrootd.logrotate.j2
+    dest: /etc/logrotate.d/xrootd
+    owner: root
+    group: root
+    mode: "0644"

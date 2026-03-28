@@ -1,0 +1,178 @@
+---
+# CA trust configuration — runs after the cert mode task.
+#
+# xrootd_ca_mode controls how xrd.tlsca is configured:
+#
+#   file   (default) — xrootd_ca_file already managed by the cert mode task;
+#                      no action taken here.
+#
+#   system — Symlink the OS system CA bundle to xrootd_ca_file.  Correct when
+#            the server cert comes from a public CA (e.g. Let's Encrypt) and
+#            clients also present publicly trusted certificates.
+#
+#   grid   — Install trust anchors + fetch-crl, use xrd.tlsca certdir.
+#            Required for WLCG/grid X.509 client certificate authentication.
+#            xrootd_ca_bundle_provider selects the trust anchor bundle:
+#              egi (default) — EGI IGTF bundle (Rocky + Ubuntu)
+#              osg           — OSG/CILogon bundle (Rocky only)
+
+- name: Symlink OS system CA bundle to xrootd_ca_file
+  ansible.builtin.file:
+    src: "{{ _system_ca_bundles[ansible_facts['os_family']] }}"
+    dest: "{{ xrootd_ca_file }}"
+    state: link
+    force: true
+  vars:
+    _system_ca_bundles:
+      RedHat: /etc/pki/tls/certs/ca-bundle.crt
+      Debian:  /etc/ssl/certs/ca-certificates.crt
+  when: xrootd_ca_mode == 'system'
+
+- name: Set up grid CA trust anchors and fetch-crl
+  when: xrootd_ca_mode == 'grid'
+  block:
+    - name: Assert OSG provider is only supported on Rocky/RHEL
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'RedHat'
+        fail_msg: >
+          xrootd_ca_bundle_provider 'osg' is only supported on Rocky/RHEL.
+          Use xrootd_ca_bundle_provider 'egi' for Ubuntu deployments.
+      when: xrootd_ca_bundle_provider == 'osg'
+
+    # Rocky 9 DEFAULT crypto policy rejects SHA-1 signatures.  Some IGTF and
+    # OSG grid CAs still include SHA-1 signed components in their CRL chains,
+    # causing TLS handshake failures.  DEFAULT:SHA1 re-enables SHA-1 on top of
+    # the existing DEFAULT policy without weakening other algorithms.
+    - name: Check current system crypto policy
+      ansible.builtin.command:
+        cmd: update-crypto-policies --show
+      register: _crypto_policy
+      changed_when: false
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Allow SHA-1 for legacy grid certificate chains
+      ansible.builtin.command:
+        cmd: update-crypto-policies --set DEFAULT:SHA1
+      when:
+        - ansible_facts['os_family'] == 'RedHat'
+        - _crypto_policy.stdout | trim != 'DEFAULT:SHA1'
+      changed_when: true
+
+    # --- EGI IGTF trust anchors (Rocky) ----------------------------------------
+    - name: Add EGI trust anchors yum repository
+      ansible.builtin.yum_repository:
+        name: egi-trustanchors
+        description: EGI Trust Anchors
+        baseurl: https://repository.egi.eu/sw/production/cas/1/current/rpm/
+        gpgkey: https://dist.eugridpma.info/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+        gpgcheck: true
+        enabled: true
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'RedHat'
+
+    - name: Install EGI IGTF CA packages and fetch-crl (Rocky)
+      ansible.builtin.dnf:
+        name:
+          - fetch-crl
+          - ca-policy-egi-core
+        state: present
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'RedHat'
+
+    # --- EGI IGTF trust anchors (Ubuntu) ----------------------------------------
+    - name: Download EGI trust anchors GPG key (Ubuntu)
+      ansible.builtin.get_url:
+        url: https://dist.eugridpma.info/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+        dest: /tmp/egi-trustanchors-gpg.asc
+        mode: "0644"
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'Debian'
+
+    - name: Dearmor EGI trust anchors GPG key (Ubuntu)
+      ansible.builtin.command:
+        cmd: gpg --dearmor -o /etc/apt/keyrings/egi-trustanchors.gpg /tmp/egi-trustanchors-gpg.asc
+        creates: /etc/apt/keyrings/egi-trustanchors.gpg
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'Debian'
+
+    - name: Add EGI trust anchors apt repository (Ubuntu)
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/etc/apt/keyrings/egi-trustanchors.gpg]
+          https://repository.egi.eu/sw/production/cas/1/current/deb/ inca certified
+        filename: egi-trustanchors
+        state: present
+        update_cache: true
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'Debian'
+
+    - name: Install EGI IGTF CA packages and fetch-crl (Ubuntu)
+      ansible.builtin.apt:
+        name:
+          - fetch-crl
+          - ca-policy-egi-core
+        state: present
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'Debian'
+
+    # --- OSG trust anchors (Rocky only) -----------------------------------------
+    - name: Add OSG software repository
+      ansible.builtin.dnf:
+        name: >-
+          https://repo.opensciencegrid.org/osg/25-main/osg-25-main-el{{ ansible_facts['distribution_major_version'] }}-release-latest.rpm
+        state: present
+        disable_gpg_check: true
+      when:
+        - xrootd_ca_bundle_provider == 'osg'
+        - ansible_facts['os_family'] == 'RedHat'
+
+    - name: Install OSG CA certs and fetch-crl
+      ansible.builtin.dnf:
+        name:
+          - fetch-crl
+          - osg-ca-certs
+        state: present
+      when:
+        - xrootd_ca_bundle_provider == 'osg'
+        - ansible_facts['os_family'] == 'RedHat'
+
+    # --- Common -----------------------------------------------------------------
+    - name: Ensure grid certificate directory exists
+      ansible.builtin.file:
+        path: "{{ xrootd_ca_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    # Run fetch-crl immediately to populate the certificate directory before
+    # xrootd starts.  fetch-crl has no "nothing changed" exit code so
+    # changed_when: false avoids spurious change reports on re-runs.
+    - name: Populate certificate directory via fetch-crl
+      ansible.builtin.command:
+        cmd: fetch-crl --quiet
+      changed_when: false
+
+    # Timer name differs between distro packages:
+    #   EGI RPM (Rocky/RHEL): fetch-crl-cron.timer
+    #   Ubuntu deb:           fetch-crl.timer
+    - name: Enable fetch-crl periodic refresh timer (Rocky)
+      ansible.builtin.systemd:
+        name: fetch-crl-cron.timer
+        enabled: true
+        state: started
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Enable fetch-crl periodic refresh timer (Ubuntu)
+      ansible.builtin.systemd:
+        name: fetch-crl.timer
+        enabled: true
+        state: started
+      when: ansible_facts['os_family'] == 'Debian'

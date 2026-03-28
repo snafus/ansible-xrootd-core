@@ -1,0 +1,23 @@
+---
+# Create xrootd group and user prior to package installation so that
+# UID/GID are predictable across nodes when xrootd_user_uid / xrootd_group_gid
+# are set. If unset, the OS chooses a free system-range ID.
+
+- name: Create xrootd group
+  ansible.builtin.group:
+    name: "{{ xrootd_group }}"
+    gid: "{{ xrootd_group_gid | default(omit) }}"
+    system: true
+    state: present
+
+- name: Create xrootd user
+  ansible.builtin.user:
+    name: "{{ xrootd_user }}"
+    uid: "{{ xrootd_user_uid | default(omit) }}"
+    group: "{{ xrootd_group }}"
+    shell: /sbin/nologin
+    home: /var/spool/xrootd
+    create_home: false
+    system: true
+    comment: XRootD daemon
+    state: present

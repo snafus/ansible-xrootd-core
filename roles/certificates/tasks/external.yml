@@ -34,8 +34,8 @@
   ansible.builtin.copy:
     content: "{{ vault_xrootd_ext_cert }}"
     dest: "{{ xrootd_cert_file }}"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0644"
   when: _ext_use_vault | bool
   no_log: true
@@ -45,8 +45,8 @@
   ansible.builtin.copy:
     content: "{{ vault_xrootd_ext_key }}"
     dest: "{{ xrootd_key_file }}"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0600"
   when: _ext_use_vault | bool
   no_log: true
@@ -56,8 +56,8 @@
   ansible.builtin.copy:
     content: "{{ vault_xrootd_ext_ca }}"
     dest: "{{ xrootd_ca_file }}"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0644"
   when:
     - _ext_use_vault | bool
@@ -71,8 +71,8 @@
   ansible.builtin.copy:
     src: "{{ xrootd_ext_cert_src }}"
     dest: "{{ xrootd_cert_file }}"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0644"
   when: not _ext_use_vault | bool
   notify: Restart xrootd
@@ -81,8 +81,8 @@
   ansible.builtin.copy:
     src: "{{ xrootd_ext_key_src }}"
     dest: "{{ xrootd_key_file }}"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0600"
   when: not _ext_use_vault | bool
   no_log: true
@@ -92,8 +92,8 @@
   ansible.builtin.copy:
     src: "{{ xrootd_ext_ca_src }}"
     dest: "{{ xrootd_ca_file }}"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0644"
   when:
     - not _ext_use_vault | bool

@@ -49,15 +49,19 @@
   when: _regen_cert | bool
   changed_when: true
 
+# Run unconditionally (not gated on _regen_cert) so a manually deleted ca_file
+# is restored on any subsequent playbook run.  copy with remote_src is
+# content-idempotent — no change is reported when the file already matches.
+# Skipped for grid ca_mode: certdir is used instead and ca_file is irrelevant.
 - name: Copy certificate as CA bundle (self-signed is its own CA)
   ansible.builtin.copy:
     src: "{{ xrootd_cert_file }}"
     dest: "{{ xrootd_ca_file }}"
     remote_src: true
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0644"
-  when: _regen_cert | bool
+  when: xrootd_ca_mode == 'file'
 
 - name: Remove temporary OpenSSL config
   ansible.builtin.file:

@@ -16,6 +16,7 @@
   ansible.builtin.dnf:
     name: epel-release
     state: present
+    update_cache: true
 
 - name: Add CERN XRootD stable yum repository
   ansible.builtin.yum_repository:
@@ -26,10 +27,6 @@
     gpgkey: "https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt"
     enabled: true
     skip_if_unavailable: true
-
-- name: Refresh dnf cache
-  ansible.builtin.dnf:
-    update_cache: true
 
 - name: Full system update (opt-in via common_update_system or --tags update)
   ansible.builtin.dnf:

@@ -3,6 +3,8 @@ name: CI
 
 on:
   push:
+    branches: [main]
+  pull_request:
 
 jobs:
   # --------------------------------------------------------------------------
@@ -21,7 +23,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install lint dependencies
-        run: pip install yamllint ansible ansible-lint
+        run: pip install -r dev-requirements.txt
 
       - name: Install Ansible collections
         run: ansible-galaxy collection install -r requirements.yml
@@ -49,35 +51,22 @@ jobs:
           python-version: "3.12"
 
       - name: Install Ansible
-        run: pip install ansible
+        run: pip install -r dev-requirements.txt
 
       - name: Install Ansible collections
         run: ansible-galaxy collection install -r requirements.yml
-
-      - name: Create minimal test inventory
-        run: |
-          mkdir -p /tmp/test-inventory
-          cat > /tmp/test-inventory/hosts.yml << 'EOF'
-          ---
-          all:
-            children:
-              xrootd_servers:
-                hosts:
-                  testhost:
-                    ansible_connection: local
-          EOF
 
       - name: Syntax check — site.yml
         run: >
           ansible-playbook site.yml
           --syntax-check
-          -i /tmp/test-inventory/hosts.yml
+          -i tests/inventory/hosts.yml
 
       - name: Syntax check — playbooks/certificates.yml
         run: >
           ansible-playbook playbooks/certificates.yml
           --syntax-check
-          -i /tmp/test-inventory/hosts.yml
+          -i tests/inventory/hosts.yml
 
   # --------------------------------------------------------------------------
   # Job 3: Molecule — full converge + verify inside a Docker container
@@ -96,7 +85,7 @@ jobs:
         distro:
           - rockylinux9
           # - rockylinux8   # Rocky Linux 8
-          # - ubuntu2204    # Ubuntu 22.04 LTS (Jammy)
+          - ubuntu2204      # Ubuntu 22.04 LTS (Jammy)
           # - ubuntu2404    # Ubuntu 24.04 LTS (Noble)
 
     steps:
@@ -109,7 +98,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Molecule and dependencies
-        run: pip install ansible "molecule-plugins[docker]" docker
+        run: pip install -r dev-requirements.txt
 
       - name: Install Ansible collections
         run: ansible-galaxy collection install -r requirements.yml

@@ -6,8 +6,8 @@
   ansible.builtin.template:
     src: Authfile.j2
     dest: "{{ xrootd_auth_dir }}/Authfile"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0640"
   when: xrootd_auth_enabled | bool
   notify: Restart xrootd

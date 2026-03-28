@@ -31,29 +31,9 @@ provisioner:
     group_vars:
       all:
         ansible_user: root
-    host_vars:
-      xrootd-rockylinux9:
         xrootd_data_path: /data/xrootd
         # Minimal config for Molecule: plain XRootD protocol only.
         # TLS, HTTP, and TPC require CERN repo packages; tested in integration.
-        xrootd_cert_mode: self_signed
-        xrootd_tls_enabled: false
-        xrootd_http_enabled: false
-        xrootd_http_tpc_enabled: false
-      xrootd-rockylinux8:
-        xrootd_data_path: /data/xrootd
-        xrootd_cert_mode: self_signed
-        xrootd_tls_enabled: false
-        xrootd_http_enabled: false
-        xrootd_http_tpc_enabled: false
-      xrootd-ubuntu2204:
-        xrootd_data_path: /data/xrootd
-        xrootd_cert_mode: self_signed
-        xrootd_tls_enabled: false
-        xrootd_http_enabled: false
-        xrootd_http_tpc_enabled: false
-      xrootd-ubuntu2404:
-        xrootd_data_path: /data/xrootd
         xrootd_cert_mode: self_signed
         xrootd_tls_enabled: false
         xrootd_http_enabled: false

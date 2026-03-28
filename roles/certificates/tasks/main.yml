@@ -3,15 +3,26 @@
 #
 # Output contract — all modes guarantee these files exist after this role runs:
 #   {{ xrootd_cert_file }}  — server certificate (PEM)
-#   {{ xrootd_key_file }}   — private key (PEM, mode 0600, owner xrootd)
-#   {{ xrootd_ca_file }}    — CA bundle (PEM)
+#   {{ xrootd_key_file }}   — private key (PEM, mode 0600, owner {{ xrootd_user }})
+#   {{ xrootd_ca_file }}    — CA bundle (PEM)  [not required for grid ca_mode]
+
+# Reject the combination before doing any work.
+- name: Assert self_signed cert mode is not combined with system ca_mode
+  ansible.builtin.assert:
+    that:
+      - not (xrootd_cert_mode == 'self_signed' and xrootd_ca_mode == 'system')
+    fail_msg: >
+      xrootd_cert_mode 'self_signed' cannot be combined with xrootd_ca_mode 'system'.
+      A self-signed certificate is not present in the OS CA bundle so clients will
+      reject the server's TLS handshake.  Use xrootd_ca_mode 'file' (default) with
+      self_signed cert mode.
 
 - name: Ensure TLS directory exists
   ansible.builtin.file:
     path: "{{ xrootd_cert_dir }}"
     state: directory
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0750"
 
 - name: Provision self-signed certificate
@@ -26,6 +37,10 @@
   ansible.builtin.include_tasks: external.yml
   when: xrootd_cert_mode == 'external'
 
+- name: Configure CA trust bundle
+  ansible.builtin.include_tasks: ca_bundle.yml
+  when: xrootd_ca_mode in ['system', 'grid']
+
 # --- Post-condition assertions — every mode must satisfy these -------------- #
 
 - name: Stat certificate file
@@ -38,9 +53,27 @@
     msg: "Certificate not found at {{ xrootd_cert_file }} after certificates role ran."
   when: not _cert_stat.stat.exists
 
-- name: Enforce private key permissions (0600, owner xrootd)
+# xrootd_ca_file is only used when ca_mode is 'file' or 'system'.
+# In 'grid' mode xrd.tlsca uses certdir instead, so ca_file need not exist.
+- name: Stat CA bundle file
+  ansible.builtin.stat:
+    path: "{{ xrootd_ca_file }}"
+  register: _ca_stat
+  when: xrootd_ca_mode != 'grid'
+
+- name: Fail if CA bundle file is missing
+  ansible.builtin.fail:
+    msg: >
+      CA bundle not found at {{ xrootd_ca_file }} after certificates role ran.
+      For external cert mode provide a CA via xrootd_ext_ca_src or vault_xrootd_ext_ca.
+      For system ca_mode check that the OS CA bundle path exists.
+  when:
+    - xrootd_ca_mode != 'grid'
+    - not _ca_stat.stat.exists
+
+- name: Enforce private key permissions
   ansible.builtin.file:
     path: "{{ xrootd_key_file }}"
-    owner: xrootd
-    group: xrootd
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
     mode: "0600"

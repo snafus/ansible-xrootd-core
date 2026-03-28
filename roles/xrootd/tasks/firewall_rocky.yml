@@ -24,4 +24,4 @@
     permanent: true
     state: enabled
     immediate: true
-  when: xrootd_cert_mode is defined and xrootd_cert_mode in ['certbot_staging', 'certbot_production']
+  when: xrootd_cert_mode in ['certbot_staging', 'certbot_production']

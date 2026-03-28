@@ -9,7 +9,6 @@ xrootd_config_name: standalone
 # --- Paths ------------------------------------------------------------------
 xrootd_data_path:   /data/xrootd         # exported namespace root
 xrootd_admin_path:  /var/spool/xrootd    # admin socket directory
-xrootd_run_path:    /run/xrootd          # PID files
 xrootd_log_path:    /var/log/xrootd      # log files
 xrootd_auth_dir:    /opt/xrd/etc         # Authfile and related config
 
@@ -22,11 +21,20 @@ xrootd_bind_address: ""     # empty = bind all interfaces
 xrootd_tls_enabled: true
 xrootd_cert_file:   /etc/xrootd/tls/server.crt
 xrootd_key_file:    /etc/xrootd/tls/server.key
-# CA bundle PEM file used for peer verification.
+# CA bundle PEM file — used by xrd.tlsca certfile (file and system modes).
 # For self-signed mode: the certificates role writes the server cert here.
-# For production: point this to your site CA bundle (e.g. a concatenated PEM).
-# Grid-style certdir (/etc/grid-security/certificates) is a future roadmap item.
+# For system mode: symlinked to the OS CA bundle by the certificates role.
 xrootd_ca_file:     /etc/xrootd/tls/ca.crt
+
+# CA verification mode for xrd.tlsca — must match certificates role value:
+#   file   — certfile {{ xrootd_ca_file }} (default)
+#   system — certfile {{ xrootd_ca_file }} (symlinked to OS bundle by certs role)
+#   grid   — certdir {{ xrootd_ca_dir }} (managed by fetch-crl via certs role)
+xrootd_ca_mode: file
+xrootd_ca_dir:  /etc/grid-security/certificates
+# Grid CA bundle provider — set in certificates role; listed here for reference:
+#   egi (default) — EGI IGTF trust anchors (Rocky + Ubuntu)
+#   osg           — OSG/CILogon trust anchors (Rocky only)
 
 # --- Features (all opt-in — explicitly enable what you need) ----------------
 xrootd_http_enabled:       false   # HTTP/WebDAV protocol (requires xrootd-server with HTTP plugin)
@@ -60,16 +68,56 @@ xrootd_auth_entries: []
 #   path: /data/xrootd
 #   permissions: rl    # r=read, l=list, w=write, d=delete, a=all
 
-# --- Monitoring -------------------------------------------------------------
+# --- Monitoring (xrd.monitor) -----------------------------------------------
+# Sends detailed per-operation event records to a UDP collector.
 xrootd_monitoring_host: ""
 xrootd_monitoring_port: 9931
+
+# --- Reporting (xrd.report) -------------------------------------------------
+# Sends periodic summary statistics to a UDP sink (e.g. xrootd_exporter).
+# Distinct from xrd.monitor — lighter weight, suitable for Prometheus scraping.
+xrootd_reporting_enabled:  false
+xrootd_reporting_host:     ""       # required when xrootd_reporting_enabled: true
+xrootd_reporting_port:     9931
+xrootd_reporting_interval: "1m"
+
+# --- Trace / logging --------------------------------------------------------
+# Empty string omits the directive (uses xrootd built-in defaults).
+# Set to a space-separated list of trace flags to enable.
+# Examples:
+#   xrootd_trace_xrd:      "conn mem net"
+#   xrootd_trace_xrootd:   "auth emsg login"
+#   xrootd_trace_http:     "request response"   # only emitted when http_enabled
+#   xrootd_macaroon_trace: "debug"               # only emitted when macaroons_enabled
+xrootd_trace_xrd:      ""
+xrootd_trace_xrootd:   ""
+xrootd_trace_http:     ""
+xrootd_macaroon_trace: ""
 
 # --- Clustered / server mode ------------------------------------------------
 xrootd_redirector_host: ""
 xrootd_redirector_port: 1094
 
+# --- Log rotation -----------------------------------------------------------
+xrootd_log_rotate_frequency: weekly   # daily | weekly | monthly
+xrootd_log_rotate_count:     4        # number of rotated files to keep
+
 # --- Site identity ----------------------------------------------------------
 xrootd_site_name: "{{ inventory_hostname }}"
+
+# --- User / group -----------------------------------------------------------
+xrootd_user:      xrootd   # service account name
+xrootd_group:     xrootd   # primary group name
+# Leave unset to let the OS pick a free system-range ID (recommended).
+# Set to a fixed value for consistent IDs across a multi-node cluster.
+# xrootd_user_uid: 988
+# xrootd_group_gid: 988
+
+# --- Package version --------------------------------------------------------
+# Pin to a specific XRootD release. Empty string installs the latest version
+# available from the configured repository (EPEL or CERN repo).
+# Examples: "5.6.9"  "5.7.1"
+xrootd_version: ""
 
 # --- Package lists ----------------------------------------------------------
 # Optional feature packages are appended in install.yml based on enabled flags.

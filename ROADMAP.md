@@ -172,7 +172,6 @@ xrootd_config_name: standalone      # standalone | server | redirector
 # Paths
 xrootd_data_path:   /data/xrootd
 xrootd_admin_path:  /var/spool/xrootd
-xrootd_run_path:    /run/xrootd
 xrootd_log_path:    /var/log/xrootd
 xrootd_auth_dir:    /opt/xrd/etc
 
@@ -184,11 +183,13 @@ xrootd_bind_address: ""             # empty = all interfaces
 xrootd_tls_enabled: true
 xrootd_cert_file:   /etc/xrootd/tls/server.crt
 xrootd_key_file:    /etc/xrootd/tls/server.key
-xrootd_ca_dir:      /etc/grid-security/certificates
+xrootd_ca_file:     /etc/xrootd/tls/ca.crt
+xrootd_ca_mode:     file          # file | system | grid
+xrootd_ca_dir:      /etc/grid-security/certificates   # grid mode only
 
 # Features — all opt-in
-xrootd_http_enabled:       true
-xrootd_http_tpc_enabled:   true
+xrootd_http_enabled:       false
+xrootd_http_tpc_enabled:   false
 xrootd_auth_enabled:       false
 xrootd_scitokens_enabled:  false
 xrootd_macaroons_enabled:  false
@@ -230,8 +231,9 @@ xrootd_site_name: "{{ inventory_hostname }}"
 | `Authfile.j2` | `/opt/xrd/etc/Authfile` |
 
 Config template uses conditional blocks for every optional feature (TLS, HTTP,
-TPC, Macaroons, SciTokens, Authfile, Monitoring) so the rendered file contains
-only what is enabled.
+TPC, Macaroons, SciTokens, Authfile, Monitoring, Reporting, Trace) so the
+rendered file contains only what is enabled.  `xrd.tlsca` uses `certfile` or
+`certdir` depending on `xrootd_ca_mode`.
 
 **Macaroon secret logic (`configure.yml`):**
 
@@ -364,49 +366,7 @@ auth/scitokens/macaroons off.
 
 ## Known Gaps
 
-### CA Certificate Bundle Management *(major)*
-
-The current implementation has a significant gap in how CA certificate bundles
-are handled for TLS peer verification.
-
-**What is broken:**
-
-The config templates emit `xrd.tlsca certdir {{ xrootd_ca_dir }}` which
-defaults to `/etc/grid-security/certificates`. This directory is:
-
-- Never created by any role
-- Never populated with CA certificates
-- Not guaranteed to exist on a freshly installed OS
-
-XRootD will warn or fail to start if the directory is absent.
-
-**The two distinct purposes conflated:**
-
-| Purpose | Path | Status |
-|---------|------|--------|
-| CA that signed *our* server cert (for clients to trust us) | `/etc/xrootd/tls/ca.crt` | Produced correctly |
-| CAs XRootD trusts for verifying *incoming* TLS peers | `xrootd_ca_dir` | Directory never populated ✗ |
-
-**What is needed:**
-
-| Deployment type | Correct CA source |
-|-----------------|------------------|
-| Basic TLS, no client auth | OS system CA bundle (default) |
-| Macaroons / SciTokens only | OS system CA bundle (tokens carry their own trust) |
-| WLCG/grid with X.509 client certs | IGTF CA bundles via `fetch-crl` + WLCG repo packages |
-
-**Planned fix:**
-
-1. Add `xrootd_ca_mode` variable: `system` (default) or `grid`
-2. `system` mode: set `xrd.tlsca` to OS system CA path
-   - Rocky: `/etc/pki/tls/certs/ca-bundle.crt`
-   - Ubuntu: `/etc/ssl/certs/ca-certificates.crt`
-3. `grid` mode: create `/etc/grid-security/certificates`, install
-   `fetch-crl` and IGTF trust anchor packages from WLCG repo,
-   run `fetch-crl` on deploy and via systemd timer
-4. Update both config templates to use correct path per mode
-5. `xrootd_ca_file` (`ca.crt`) remains as a client-facing artefact
-   (what clients should add to their trust store to verify our server)
+*No known gaps at this time.*  See Phased Delivery below for planned Phase 2 work.
 
 ---
 

@@ -93,8 +93,8 @@ all:
 xrootd_data_path: /data/xrootd
 ```
 
-Everything else uses safe defaults: self-signed cert, port 1094, HTTP+TPC
-enabled, auth/scitokens/macaroons disabled.
+Everything else uses safe defaults: self-signed cert, port 1094, all optional
+features (HTTP, TPC, auth, SciTokens, macaroons) disabled.
 
 ## Certificate Modes
 
@@ -109,15 +109,58 @@ Set `xrootd_cert_mode` in your group_vars:
 
 ## Optional Features
 
-Enable in `group_vars/xrootd_servers/main.yml`:
+All features are opt-in. Enable in `group_vars/xrootd_servers/main.yml`:
 
 ```yaml
-xrootd_http_enabled: true           # HTTP/WebDAV (default: true)
-xrootd_http_tpc_enabled: true       # Third Party Copy (default: true)
-xrootd_macaroons_enabled: true      # Macaroon token auth
-xrootd_scitokens_enabled: true      # SciTokens / WLCG JWT
-xrootd_auth_enabled: true           # Authfile authorisation
-xrootd_monitoring_enabled: true     # UDP monitoring export
+xrootd_http_enabled: true           # HTTP/WebDAV protocol plugin
+xrootd_http_tpc_enabled: true       # Third Party Copy (requires http_enabled)
+xrootd_macaroons_enabled: true      # Macaroon bearer token auth
+xrootd_scitokens_enabled: true      # SciTokens / WLCG JWT token auth
+xrootd_auth_enabled: true           # Authfile-based access control
+xrootd_monitoring_enabled: true     # xrd.monitor UDP event stream
+xrootd_reporting_enabled: true      # xrd.report periodic stats (Prometheus)
+xrootd_reporting_host: "collector.example.org"  # required when reporting enabled
+```
+
+### Version pinning
+
+```yaml
+xrootd_version: "5.6.9"   # pin to a specific release; empty = latest
+```
+
+### CA trust mode
+
+Controls `xrd.tlsca` — how XRootD verifies client/peer certificates:
+
+| Value | Behaviour |
+|-------|-----------|
+| `file` (default) | Use `xrootd_ca_file` — correct for self-signed and external modes |
+| `system` | Symlink the OS CA bundle to `xrootd_ca_file` — use with certbot/public CAs |
+| `grid` | Install trust anchors + fetch-crl (initial + timer), use `xrd.tlsca certdir` |
+
+When `xrootd_ca_mode: grid`, select the trust anchor bundle with `xrootd_ca_bundle_provider`:
+
+| Provider | Bundle | Platforms |
+|----------|--------|-----------|
+| `egi` (default) | EGI IGTF trust anchors | Rocky + Ubuntu |
+| `osg` | OSG / CILogon trust anchors | Rocky only |
+
+On Rocky, `update-crypto-policies --set DEFAULT:SHA1` is applied automatically —
+required because some grid CA CRL chains still include SHA-1 signed components
+that Rocky 9's default crypto policy rejects.
+
+```yaml
+xrootd_ca_mode: grid
+xrootd_ca_bundle_provider: osg   # or egi (default)
+```
+
+### Trace / logging
+
+```yaml
+xrootd_trace_xrd:      "conn net"     # xrd.trace flags
+xrootd_trace_xrootd:   "auth login"   # xrootd.trace flags
+xrootd_trace_http:     "request"      # http.trace (http_enabled only)
+xrootd_macaroon_trace: "debug"        # macaroons.trace (macaroons_enabled only)
 ```
 
 ## Secrets
@@ -146,10 +189,14 @@ Run specific parts of the playbook with `--tags`:
 | Tag | Scope |
 |-----|-------|
 | `install` | Package installation only |
-| `configure` | Configuration files only |
+| `users` | User/group creation only |
+| `configure` | All configuration files |
+| `firewall` | Firewall rules only |
+| `auth` | Authfile deployment only |
+| `logrotate` | Logrotate config only |
 | `service` | Service management only |
 | `validate` | Post-deploy checks only |
-| `update` | OS package update (opt-in, not run by default) |
+| `update` | OS package update (opt-in, never runs by default) |
 
 ```bash
 ansible-playbook site.yml --tags configure
@@ -157,17 +204,17 @@ ansible-playbook site.yml --tags configure
 
 ## CI
 
-Every push runs three jobs:
+Every push runs four jobs:
 
 | Job | What it checks |
 |-----|---------------|
-| `lint` | yamllint + ansible-lint |
+| `lint` | yamllint + ansible-lint (production profile) |
 | `syntax-check` | `ansible-playbook --syntax-check` on all playbooks |
-| `molecule` | Full converge + verify inside a Docker container |
+| `molecule (rockylinux9)` | Full converge + idempotence + verify in Docker |
+| `molecule (ubuntu2204)` | Full converge + idempotence + verify in Docker |
 
-Molecule runs a matrix of target OS images. Rocky Linux 9 is active; Rocky 8,
-Ubuntu 22.04, and Ubuntu 24.04 are pre-configured and can be enabled by
-uncommenting entries in `.github/workflows/ci.yml`.
+Rocky 8 and Ubuntu 24.04 are pre-configured in the matrix and can be enabled
+by uncommenting entries in `.github/workflows/ci.yml`.
 
 Run checks locally before pushing:
 ```bash

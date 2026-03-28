@@ -42,7 +42,7 @@
   ansible.builtin.command:
     cmd: gpg --dearmor -o /etc/apt/keyrings/xrootd.gpg /tmp/xrootd-gpg-key.asc
     creates: /etc/apt/keyrings/xrootd.gpg
-  changed_when: true
+  when: not (ansible_check_mode | bool)
 
 - name: Add CERN XRootD apt repository
   ansible.builtin.apt_repository:
