@@ -4,6 +4,41 @@
 # via the handler.
 
 # Validate required variables before any config is written.
+- name: Assert xrootd_config_name is a recognised profile
+  ansible.builtin.assert:
+    that:
+      - xrootd_config_name in ['standalone', 'server', 'redirector']
+    fail_msg: >
+      xrootd_config_name must be one of: standalone, server, redirector.
+      Got: '{{ xrootd_config_name }}'
+
+- name: Assert server/redirector config profiles are not yet implemented
+  ansible.builtin.assert:
+    that:
+      - xrootd_config_name == 'standalone'
+    fail_msg: >
+      xrootd_config_name '{{ xrootd_config_name }}' is a Phase 2 feature.
+      The template xrootd-{{ xrootd_config_name }}.cfg.j2 does not yet exist.
+      See ROADMAP.md Phase 2 for the planned cmsd + redirector implementation.
+
+- name: Assert xrootd_http_enabled is true when TPC is enabled
+  ansible.builtin.assert:
+    that:
+      - xrootd_http_enabled | bool
+    fail_msg: >
+      xrootd_http_tpc_enabled requires xrootd_http_enabled to be true.
+      Third Party Copy is an extension of the HTTP/WebDAV protocol plugin.
+  when: xrootd_http_tpc_enabled | bool
+
+- name: Assert xrootd_monitoring_host is set when monitoring is enabled
+  ansible.builtin.assert:
+    that:
+      - xrootd_monitoring_host | length > 0
+    fail_msg: >
+      xrootd_monitoring_enabled is true but xrootd_monitoring_host is empty.
+      Set xrootd_monitoring_host to the IP or FQDN of your stats collector.
+  when: xrootd_monitoring_enabled | bool
+
 - name: Assert xrootd_reporting_host is set when reporting is enabled
   ansible.builtin.assert:
     that:

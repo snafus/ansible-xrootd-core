@@ -7,13 +7,14 @@
     port: "{{ xrootd_port }}"
     proto: tcp
 
-# UDP on the same port is used by the xrd.monitor UDP stats export.
-- name: Allow XRootD monitoring port (UDP)
+# UDP on the xrootd port is used by xrd.monitor (event stream) and
+# xrd.report (summary stats) — open when either is enabled.
+- name: Allow XRootD monitoring/reporting port (UDP)
   community.general.ufw:
     rule: allow
     port: "{{ xrootd_port }}"
     proto: udp
-  when: xrootd_monitoring_enabled | bool
+  when: xrootd_monitoring_enabled | bool or xrootd_reporting_enabled | bool
 
 # certbot standalone mode needs port 80 open for the ACME HTTP-01 challenge.
 - name: Allow HTTP (port 80) for certbot ACME challenge

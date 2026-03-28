@@ -9,6 +9,8 @@ all.sitename {{ xrootd_site_name }}
 xrd.port {{ xrootd_port }}
 {% if xrootd_bind_address %}
 xrd.network nodnr bind {{ xrootd_bind_address }}
+{% else %}
+xrd.network nodnr
 {% endif %}
 
 # --- TLS --------------------------------------------------------------------
