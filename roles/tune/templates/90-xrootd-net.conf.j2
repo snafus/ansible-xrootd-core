@@ -1,6 +1,6 @@
 # XRootD network performance tuning — managed by Ansible, do not edit manually.
 # Host       : {{ inventory_hostname }}
-# Speed tier : {{ _tune_speed_tier }}{% if tune_nic_speed == 'auto' %} (auto-detected from {{ tune_nic_device | default('(no device set)') }}){% else %} (explicit){% endif %}
+# Speed tier : {{ _tune_speed_tier }} ({{ 'auto' if tune_nic_speed == 'auto' else 'explicit' }})
 
 # Reference: https://fasterdata.es.net/host-tuning/linux/ (reviewed 2026-03-29)
 # Drop-in prefix 90- sits above distro defaults (60-) and below operator overrides (99-).

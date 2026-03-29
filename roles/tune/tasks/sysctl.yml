@@ -45,10 +45,15 @@
     _tune_speed_tier: "{{ tune_nic_speed }}"
   when: tune_nic_speed != 'auto'
 
-- name: Show resolved speed tier
+- name: Show resolved speed tier (auto-detected)
   ansible.builtin.debug:
-    msg: >-
-      tune: speed tier = {{ _tune_speed_tier }}{%- if tune_nic_speed == 'auto' %} (auto from {{ tune_nic_device | default('(no device)') }} = {{ _tune_detected_speed | default('?') }} Mbps){%- else %} (explicit){%- endif %}
+    msg: "tune: speed tier = {{ _tune_speed_tier }} (auto from {{ tune_nic_device | default('(no device)') }} = {{ _tune_detected_speed | default('?') }} Mbps)"
+  when: tune_nic_speed == 'auto'
+
+- name: Show resolved speed tier (explicit)
+  ansible.builtin.debug:
+    msg: "tune: speed tier = {{ _tune_speed_tier }} (explicit)"
+  when: tune_nic_speed != 'auto'
 
 # --- Resolve final sysctl values (preset + per-variable overrides) ----------
 # tune_rmem_max etc. default to "" — the `default(x, true)` filter treats
