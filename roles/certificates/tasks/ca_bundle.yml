@@ -72,6 +72,16 @@
         - xrootd_ca_bundle_provider == 'egi'
         - ansible_facts['os_family'] == 'RedHat'
 
+    # yum_repository writes the gpgkey URL into the .repo file but does not
+    # import the key into the RPM keyring — rpm_key must do that explicitly.
+    - name: Import EGI trust anchors GPG key into RPM keyring (Rocky)
+      ansible.builtin.rpm_key:
+        key: https://dist.eugridpma.info/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+        state: present
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'RedHat'
+
     - name: Install EGI IGTF CA packages and fetch-crl (Rocky)
       ansible.builtin.dnf:
         name:
