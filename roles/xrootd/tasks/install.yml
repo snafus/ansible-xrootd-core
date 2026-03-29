@@ -40,23 +40,26 @@
     state: present
     update_cache: true
 
-# xrootd does not support --version; query the package manager instead.
-- name: Get installed XRootD version (Rocky)
-  ansible.builtin.command:
-    cmd: rpm -q xrootd --queryformat '%{NAME}-%{VERSION}-%{RELEASE}\n'
-  register: _xrootd_version_result
-  changed_when: false
-  failed_when: false
-  when: ansible_facts['os_family'] == 'RedHat'
+# Use package_facts to query the installed version without shelling out.
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
 
-- name: Get installed XRootD version (Ubuntu)
-  ansible.builtin.command:
-    cmd: dpkg-query -W -f='${Package} ${Version}\n' xrootd-server
-  register: _xrootd_version_result
-  changed_when: false
-  failed_when: false
-  when: ansible_facts['os_family'] == 'Debian'
-
-- name: Show installed XRootD version
+- name: Show installed XRootD version (Rocky)
   ansible.builtin.debug:
-    msg: "XRootD: {{ _xrootd_version_result.stdout | default('unknown') | trim }}"
+    msg: >-
+      XRootD: {{ (ansible_facts.packages['xrootd'] | first).name }}-{{
+                 (ansible_facts.packages['xrootd'] | first).version }}-{{
+                 (ansible_facts.packages['xrootd'] | first).release }}
+  when:
+    - ansible_facts['os_family'] == 'RedHat'
+    - "'xrootd' in ansible_facts.packages"
+
+- name: Show installed XRootD version (Ubuntu)
+  ansible.builtin.debug:
+    msg: >-
+      XRootD: {{ (ansible_facts.packages['xrootd-server'] | first).name }} {{
+                 (ansible_facts.packages['xrootd-server'] | first).version }}
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - "'xrootd-server' in ansible_facts.packages"
