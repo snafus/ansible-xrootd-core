@@ -3,7 +3,7 @@
 
 - name: Allow XRootD/HTTP port (TCP)
   ansible.posix.firewalld:
-    port: "{{ xrootd_port }}/tcp"
+    port: "{{ xrootd_port | string }}/tcp"
     permanent: true
     state: enabled
     immediate: true
@@ -12,7 +12,7 @@
 # xrd.report (summary stats) — open when either is enabled.
 - name: Allow XRootD monitoring/reporting port (UDP)
   ansible.posix.firewalld:
-    port: "{{ xrootd_port }}/udp"
+    port: "{{ xrootd_port | string }}/udp"
     permanent: true
     state: enabled
     immediate: true

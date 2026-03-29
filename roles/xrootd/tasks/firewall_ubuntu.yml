@@ -4,7 +4,7 @@
 - name: Allow XRootD/HTTP port (TCP)
   community.general.ufw:
     rule: allow
-    port: "{{ xrootd_port }}"
+    port: "{{ xrootd_port | string }}"
     proto: tcp
 
 # UDP on the xrootd port is used by xrd.monitor (event stream) and
@@ -12,7 +12,7 @@
 - name: Allow XRootD monitoring/reporting port (UDP)
   community.general.ufw:
     rule: allow
-    port: "{{ xrootd_port }}"
+    port: "{{ xrootd_port | string }}"
     proto: udp
   when: xrootd_monitoring_enabled | bool or xrootd_reporting_enabled | bool
 
