@@ -3,6 +3,24 @@
 # xrootd@<name> reads /etc/xrootd/xrootd-<name>.cfg
 # cmsd@<name>   is the cluster manager daemon (required for non-standalone modes)
 
+# Drop-in must be in place before daemon_reload so limits take effect on first start.
+- name: Create systemd drop-in directory for xrootd limits
+  ansible.builtin.file:
+    path: /etc/systemd/system/xrootd@.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy systemd resource limits drop-in
+  ansible.builtin.template:
+    src: xrootd-limits.conf.j2
+    dest: /etc/systemd/system/xrootd@.service.d/limits.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart xrootd
+
 - name: Reload systemd daemon
   ansible.builtin.systemd:
     daemon_reload: true

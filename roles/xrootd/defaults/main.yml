@@ -105,6 +105,14 @@ xrootd_log_rotate_count:     4        # number of rotated files to keep
 # --- Site identity ----------------------------------------------------------
 xrootd_site_name: "{{ inventory_hostname }}"
 
+# --- systemd resource limits ------------------------------------------------
+# Applied via a drop-in at /etc/systemd/system/xrootd@.service.d/limits.conf.
+# XRootD opens one file descriptor per active connection and per open file;
+# 1 M is the standard setting at WLCG Tier-1 and SRCNet storage nodes.
+# Set to "infinity" to remove the cap entirely (requires CAP_SYS_RESOURCE).
+xrootd_limit_nofile: 1048576   # LimitNOFILE — open file descriptors
+xrootd_limit_nproc:  65536     # LimitNPROC  — threads / sub-processes
+
 # --- User / group -----------------------------------------------------------
 xrootd_user:      xrootd   # service account name
 xrootd_group:     xrootd   # primary group name

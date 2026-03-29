@@ -1,0 +1,5 @@
+# systemd resource limits for xrootd@.service — managed by Ansible, do not edit manually.
+# Override via xrootd_limit_nofile / xrootd_limit_nproc in your inventory.
+[Service]
+LimitNOFILE={{ xrootd_limit_nofile }}
+LimitNPROC={{ xrootd_limit_nproc }}

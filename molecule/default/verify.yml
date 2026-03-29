@@ -117,6 +117,19 @@
           /var/log/xrootd: exists={{ _log_dir.stat.exists }}
           owner={{ _log_dir.stat.pw_name | default('unknown') }}
 
+    # --- systemd resource limits --------------------------------------------
+    - name: Get xrootd service LimitNOFILE
+      ansible.builtin.command:
+        cmd: systemctl show xrootd@standalone --property=LimitNOFILE
+      register: _nofile
+      changed_when: false
+
+    - name: Assert LimitNOFILE is >= 1048576
+      ansible.builtin.assert:
+        that:
+          - (_nofile.stdout | regex_search('[0-9]+') | int) >= 1048576
+        fail_msg: "LimitNOFILE is too low: {{ _nofile.stdout }}"
+
     # --- User / group -------------------------------------------------------
     - name: Get xrootd user entry
       ansible.builtin.command:
