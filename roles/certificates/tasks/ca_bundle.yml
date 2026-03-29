@@ -162,6 +162,14 @@
         group: root
         mode: "0755"
 
+    # CA packages install .pem files; OpenSSL requires hash-named symlinks
+    # (<hash>.0) to look up CAs by subject hash — as used by xrd.tlsca certdir.
+    # 'openssl rehash' (OpenSSL 1.1+) is available on both Rocky and Ubuntu.
+    - name: Create OpenSSL hash symlinks in grid certdir
+      ansible.builtin.command:
+        cmd: openssl rehash {{ xrootd_ca_dir }}
+      changed_when: false
+
     # Run fetch-crl immediately to populate the certificate directory before
     # xrootd starts.  fetch-crl has no "nothing changed" exit code so
     # changed_when: false avoids spurious change reports on re-runs.

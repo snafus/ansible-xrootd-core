@@ -129,7 +129,7 @@
     - name: Find CA certificate files in grid certdir
       ansible.builtin.find:
         paths: /etc/grid-security/certificates
-        patterns: "*.0"
+        patterns: "*.pem"
       register: _ca_files
 
     - name: Assert grid certdir contains CA certificates
@@ -137,7 +137,7 @@
         that:
           - _ca_files.matched > 0
         fail_msg: >
-          No CA certificate files (*.0) in /etc/grid-security/certificates —
+          No CA certificate files (*.pem) in /etc/grid-security/certificates —
           ca-policy-egi-core may not have installed correctly.
 
     - name: Find CRL files in grid certdir
