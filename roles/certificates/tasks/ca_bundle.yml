@@ -155,10 +155,15 @@
     # Run fetch-crl immediately to populate the certificate directory before
     # xrootd starts.  fetch-crl has no "nothing changed" exit code so
     # changed_when: false avoids spurious change reports on re-runs.
+    # fetch-crl returns rc=1 if any individual CRL endpoint fails — this is
+    # normal when a minority of CAs have stale or unreachable distribution
+    # points.  failed_when: false lets the play continue; the verify step
+    # asserts that at least some CRL files were written successfully.
     - name: Populate certificate directory via fetch-crl
       ansible.builtin.command:
         cmd: fetch-crl --quiet
       changed_when: false
+      failed_when: false
 
     # Timer name differs between distro packages:
     #   EGI RPM (Rocky/RHEL): fetch-crl-cron.timer
