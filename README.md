@@ -154,6 +154,29 @@ xrootd_ca_mode: grid
 xrootd_ca_bundle_provider: osg   # or egi (default)
 ```
 
+### System resource limits
+
+A systemd drop-in sets `LimitNOFILE` and `LimitNPROC` for all `xrootd@*` units.
+Defaults are sized for Tier-1 / SRCNet production nodes:
+
+```yaml
+xrootd_limit_nofile: 1048576   # open file descriptors (default: 1 M)
+xrootd_limit_nproc:  65536     # threads / sub-processes (default: 64 k)
+```
+
+### jemalloc
+
+Preloading jemalloc reduces allocator lock contention under high concurrency
+(many simultaneous transfers). Disabled by default; recommended for
+high-throughput nodes:
+
+```yaml
+xrootd_jemalloc_enabled: true
+```
+
+Installs `jemalloc` (Rocky) or `libjemalloc2` (Ubuntu) and adds
+`LD_PRELOAD` to the systemd drop-in automatically.
+
 ### Trace / logging
 
 ```yaml
