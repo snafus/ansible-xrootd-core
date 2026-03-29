@@ -68,6 +68,12 @@ jobs:
           --syntax-check
           -i tests/inventory/hosts.yml
 
+      - name: Syntax check — playbooks/tune.yml
+        run: >
+          ansible-playbook playbooks/tune.yml
+          --syntax-check
+          -i tests/inventory/hosts.yml
+
   # --------------------------------------------------------------------------
   # Job 3: Molecule — full converge + verify inside a Docker container
   #

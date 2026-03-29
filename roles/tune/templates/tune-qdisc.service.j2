@@ -1,0 +1,19 @@
+# tune-qdisc.service — managed by Ansible, do not edit manually.
+# Applies tc fq packet scheduler on {{ tune_nic_device }} at boot.
+# tc commands do not survive reboot; this unit re-applies them.
+# Reference: https://fasterdata.es.net/host-tuning/linux/
+
+[Unit]
+Description=Apply tc fq packet scheduler on {{ tune_nic_device }}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/sbin/tc qdisc replace dev {{ tune_nic_device }} root fq{% if tune_qdisc_maxrate | length > 0 %} maxrate {{ tune_qdisc_maxrate }}{% endif %}
+
+ExecStop=/sbin/tc qdisc del dev {{ tune_nic_device }} root
+
+[Install]
+WantedBy=multi-user.target

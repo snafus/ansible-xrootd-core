@@ -1,0 +1,39 @@
+---
+# Performance tuning role — ESNet fasterdata.es.net recommendations.
+# All tasks except sysctl require tune_nic_device to be set.
+# grub tasks require a reboot; set tune_grub_reboot: true to do so automatically.
+
+- name: Apply sysctl network tuning
+  ansible.builtin.include_tasks: sysctl.yml
+  tags: [tune, tune_sysctl]
+  when: tune_sysctl_enabled | bool
+
+- name: Configure tc fq qdisc
+  ansible.builtin.include_tasks: qdisc.yml
+  tags: [tune, tune_qdisc]
+  when: tune_qdisc_enabled | bool
+
+- name: Configure NIC with ethtool
+  ansible.builtin.include_tasks: ethtool.yml
+  tags: [tune, tune_ethtool]
+  when: tune_ethtool_enabled | bool
+
+- name: Configure jumbo frames
+  ansible.builtin.include_tasks: jumbo_frames.yml
+  tags: [tune, tune_jumbo]
+  when: tune_jumbo_frames_enabled | bool
+
+- name: Set CPU performance governor
+  ansible.builtin.include_tasks: cpu_governor.yml
+  tags: [tune, tune_cpu]
+  when: tune_cpu_governor_enabled | bool
+
+- name: Configure NIC IRQ affinity
+  ansible.builtin.include_tasks: irq_affinity.yml
+  tags: [tune, tune_irq]
+  when: tune_irq_affinity_enabled | bool
+
+- name: Apply grub kernel parameters
+  ansible.builtin.include_tasks: grub.yml
+  tags: [tune, tune_grub]
+  when: tune_grub_iommu_enabled | bool or tune_grub_smt_disable | bool

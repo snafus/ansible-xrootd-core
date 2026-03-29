@@ -1,0 +1,90 @@
+---
+# Bind NIC IRQs to the NUMA socket that owns the NIC.
+# Requires Mellanox OFED (set_irq_affinity_bynode.sh).
+# Also disables irqbalance, which interferes with manual IRQ pinning.
+#
+# Persistence: tune-irq-affinity.service (systemd oneshot)
+
+- name: Assert tune_nic_device is set for IRQ affinity configuration
+  ansible.builtin.assert:
+    that: tune_nic_device | length > 0
+    fail_msg: >
+      tune_irq_affinity_enabled is true but tune_nic_device is empty.
+      Set tune_nic_device to the data transfer interface name.
+
+- name: Check for Mellanox IRQ affinity script
+  ansible.builtin.stat:
+    path: "{{ tune_irq_affinity_script }}"
+  register: _irq_script_stat
+
+- name: Warn if IRQ affinity script not found
+  ansible.builtin.debug:
+    msg: >
+      tune: IRQ affinity script not found at {{ tune_irq_affinity_script }}.
+      This script is shipped with Mellanox OFED and is not available on vanilla
+      kernel nodes.  IRQ affinity tuning will be skipped.
+      Install Mellanox OFED, or set tune_irq_affinity_enabled: false.
+  when: not _irq_script_stat.stat.exists
+
+- name: Get NUMA node for NIC
+  ansible.builtin.command:
+    cmd: "cat /sys/class/net/{{ tune_nic_device }}/device/numa_node"
+  register: _nic_numa_node
+  changed_when: false
+  failed_when: false
+  when: _irq_script_stat.stat.exists
+
+- name: Warn if NUMA node cannot be determined
+  ansible.builtin.debug:
+    msg: >
+      tune: cannot determine NUMA node for {{ tune_nic_device }}
+      ({{ _nic_numa_node.stdout | default('no output') }}).
+      IRQ affinity tuning will be skipped.
+  when:
+    - _irq_script_stat.stat.exists
+    - _nic_numa_node.rc is not defined or _nic_numa_node.rc != 0
+
+- name: Stop and disable irqbalance
+  ansible.builtin.systemd:
+    name: irqbalance
+    state: stopped
+    enabled: false
+  failed_when: false
+  when:
+    - _irq_script_stat.stat.exists
+    - _nic_numa_node.rc is defined
+    - _nic_numa_node.rc == 0
+
+- name: Apply IRQ affinity immediately
+  ansible.builtin.command:
+    cmd: "{{ tune_irq_affinity_script }} {{ _nic_numa_node.stdout | trim }} {{ tune_nic_device }}"
+  changed_when: true
+  when:
+    - _irq_script_stat.stat.exists
+    - _nic_numa_node.rc is defined
+    - _nic_numa_node.rc == 0
+
+- name: Deploy IRQ affinity systemd unit
+  ansible.builtin.template:
+    src: tune-irq-affinity.service.j2
+    dest: /etc/systemd/system/tune-irq-affinity.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+    - Restart tune-irq-affinity
+  when:
+    - _irq_script_stat.stat.exists
+    - _nic_numa_node.rc is defined
+    - _nic_numa_node.rc == 0
+
+- name: Enable IRQ affinity service
+  ansible.builtin.systemd:
+    name: tune-irq-affinity.service
+    enabled: true
+    daemon_reload: true
+  when:
+    - _irq_script_stat.stat.exists
+    - _nic_numa_node.rc is defined
+    - _nic_numa_node.rc == 0

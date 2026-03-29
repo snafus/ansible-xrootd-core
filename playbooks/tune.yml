@@ -1,0 +1,18 @@
+---
+# Performance tuning — standalone playbook.
+# Run independently before or after xrootd_server.yml, or include in site.yml.
+#
+# Minimum required variables:
+#   tune_nic_device  — data transfer interface (e.g. bond0, ens1f0)
+#                      must be set at host level in inventory
+#
+# Usage:
+#   ansible-playbook playbooks/tune.yml
+#   ansible-playbook playbooks/tune.yml --tags tune_sysctl   # sysctl only
+#   ansible-playbook playbooks/tune.yml -e tune_nic_device=bond0
+
+- name: Apply performance tuning
+  hosts: xrootd_servers
+  become: true
+  roles:
+    - role: tune

@@ -1,0 +1,131 @@
+---
+# Add kernel parameters to GRUB_CMDLINE_LINUX.
+# IOMMU passthrough and SMT disable both require a reboot.
+# Set tune_grub_reboot: true to reboot automatically.
+
+- name: Warn that grub changes require a reboot
+  ansible.builtin.debug:
+    msg: >
+      tune: grub kernel parameter changes requested
+      (iommu={{ tune_grub_iommu_enabled }}, smt_disable={{ tune_grub_smt_disable }}).
+      A REBOOT IS REQUIRED for these to take effect.
+      Set tune_grub_reboot: true to reboot automatically at the end of this play.
+
+# --- Detect CPU vendor for IOMMU parameter selection -----------------------
+
+- name: Detect CPU vendor
+  ansible.builtin.set_fact:
+    _tune_cpu_vendor: >-
+      {%- if 'GenuineIntel' in ansible_facts['processor'] -%}intel
+      {%- elif 'AuthenticAMD' in ansible_facts['processor'] -%}amd
+      {%- else -%}unknown
+      {%- endif -%}
+  when: tune_grub_iommu_enabled | bool
+
+- name: Warn if CPU vendor cannot be determined for IOMMU
+  ansible.builtin.debug:
+    msg: >
+      tune: cannot determine CPU vendor from ansible_facts['processor'].
+      IOMMU parameter will use generic 'iommu=pt' only (no intel_iommu= or amd_iommu=).
+  when:
+    - tune_grub_iommu_enabled | bool
+    - _tune_cpu_vendor | default('unknown') == 'unknown'
+
+# --- Build list of required kernel parameters -------------------------------
+
+- name: Build list of required kernel parameters
+  ansible.builtin.set_fact:
+    _tune_grub_params: >-
+      {%- set p = [] -%}
+      {%- if tune_grub_iommu_enabled | bool -%}
+        {%- if _tune_cpu_vendor | default('unknown') == 'intel' -%}
+          {%- set _ = p.append('intel_iommu=on') -%}
+        {%- elif _tune_cpu_vendor | default('unknown') == 'amd' -%}
+          {%- set _ = p.append('amd_iommu=on') -%}
+        {%- endif -%}
+        {%- set _ = p.append('iommu=pt') -%}
+      {%- endif -%}
+      {%- if tune_grub_smt_disable | bool -%}
+        {%- set _ = p.append('nosmt') -%}
+      {%- endif -%}
+      {{ p }}
+
+# --- Read and update /etc/default/grub -------------------------------------
+
+- name: Read /etc/default/grub
+  ansible.builtin.slurp:
+    src: /etc/default/grub
+  register: _grub_raw
+
+- name: Extract current GRUB_CMDLINE_LINUX value
+  ansible.builtin.set_fact:
+    _grub_cmdline_current: >-
+      {{ (_grub_raw.content | b64decode |
+          regex_search('GRUB_CMDLINE_LINUX="([^"]*)"', '\1') or ['']) | first }}
+
+- name: Build updated GRUB_CMDLINE_LINUX (add missing params only)
+  ansible.builtin.set_fact:
+    _grub_cmdline_new: >-
+      {{ (_grub_cmdline_current.split() +
+          (_tune_grub_params | difference(_grub_cmdline_current.split())))
+         | join(' ') }}
+
+- name: Update GRUB_CMDLINE_LINUX
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX=".*"'
+    line: 'GRUB_CMDLINE_LINUX="{{ _grub_cmdline_new }}"'
+  register: _grub_updated
+  when: _grub_cmdline_new | trim != _grub_cmdline_current | trim
+
+# --- Regenerate grub config -------------------------------------------------
+
+- name: Check for EFI boot
+  ansible.builtin.stat:
+    path: /sys/firmware/efi
+  register: _efi_stat
+  when: _grub_updated is changed
+
+- name: Regenerate grub — Rocky BIOS
+  ansible.builtin.command:
+    cmd: grub2-mkconfig -o /boot/grub2/grub.cfg
+  changed_when: true
+  when:
+    - _grub_updated is changed
+    - ansible_facts['os_family'] == 'RedHat'
+    - not _efi_stat.stat.exists
+
+- name: Regenerate grub — Rocky EFI
+  ansible.builtin.command:
+    cmd: grub2-mkconfig -o /boot/efi/EFI/redhat/grub.cfg
+  changed_when: true
+  failed_when: false   # EFI path varies by distro variant
+  when:
+    - _grub_updated is changed
+    - ansible_facts['os_family'] == 'RedHat'
+    - _efi_stat.stat.exists
+
+- name: Regenerate grub — Ubuntu
+  ansible.builtin.command:
+    cmd: update-grub
+  changed_when: true
+  when:
+    - _grub_updated is changed
+    - ansible_facts['os_family'] == 'Debian'
+
+# --- Optional immediate reboot ---------------------------------------------
+
+- name: Show pending kernel parameters
+  ansible.builtin.debug:
+    msg: >
+      tune: grub updated with: {{ _tune_grub_params | join(' ') }}.
+      Reboot pending{% if tune_grub_reboot | bool %} — rebooting now{% else %} — reboot manually to apply{% endif %}.
+  when: _grub_updated is changed
+
+- name: Reboot to apply kernel parameters
+  ansible.builtin.reboot:
+    reboot_timeout: 600
+    msg: "tune role: rebooting to apply kernel parameters: {{ _tune_grub_params | join(' ') }}"
+  when:
+    - _grub_updated is changed
+    - tune_grub_reboot | bool

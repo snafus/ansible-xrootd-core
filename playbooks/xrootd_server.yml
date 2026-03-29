@@ -1,11 +1,18 @@
 ---
 # Full XRootD server deployment
-# Runs: common → certificates → xrootd
+# Runs: tune (opt-in) → common → certificates → xrootd
 # Usage: ansible-playbook playbooks/xrootd_server.yml
+#
+# Performance tuning is disabled by default.  Enable with:
+#   tune_enabled: true        (in group_vars or host vars)
+#   tune_nic_device: bond0    (required at host level — see hosts.yml.example)
+# Or run playbooks/tune.yml separately for more control.
 - name: Deploy XRootD Server
   hosts: xrootd_servers
   become: true
   roles:
+    - role: tune
+      when: tune_enabled | default(false) | bool
     - role: common
     - role: certificates
     - role: xrootd

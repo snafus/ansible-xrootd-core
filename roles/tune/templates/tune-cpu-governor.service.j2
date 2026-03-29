@@ -1,0 +1,15 @@
+# tune-cpu-governor.service — managed by Ansible, do not edit manually.
+# Sets CPU frequency scaling governor to {{ tune_cpu_governor }} at boot.
+# Recommended by ESNet for 100G DTN nodes (can improve throughput ~30%).
+
+[Unit]
+Description=Set CPU frequency governor to {{ tune_cpu_governor }}
+After=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/cpupower frequency-set -g {{ tune_cpu_governor }}
+
+[Install]
+WantedBy=multi-user.target

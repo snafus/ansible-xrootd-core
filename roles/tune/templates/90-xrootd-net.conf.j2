@@ -1,0 +1,42 @@
+# XRootD network performance tuning — managed by Ansible, do not edit manually.
+# Host       : {{ inventory_hostname }}
+# Speed tier : {{ _tune_speed_tier }}{% if tune_nic_speed == 'auto' %} (auto-detected from {{ tune_nic_device | default('(no device set)') }}){% else %} (explicit){% endif %}
+
+# Reference: https://fasterdata.es.net/host-tuning/linux/ (reviewed 2026-03-29)
+# Drop-in prefix 90- sits above distro defaults (60-) and below operator overrides (99-).
+
+# --- Socket buffer maximums -------------------------------------------------
+# Upper bound for SO_RCVBUF / SO_SNDBUF.  TCP autotuning and XRootD both
+# respect this limit.  Must be >= tcp_rmem/tcp_wmem max below.
+net.core.rmem_max = {{ _tune_rmem_max }}
+net.core.wmem_max = {{ _tune_wmem_max }}
+
+# --- TCP autotuning range ---------------------------------------------------
+# Format: min  default  max  (bytes)
+# Kernel selects within this range per-connection based on available memory.
+net.ipv4.tcp_rmem = {{ _tune_tcp_rmem }}
+net.ipv4.tcp_wmem = {{ _tune_tcp_wmem }}
+
+{% if _tune_optmem_max %}
+# Ancillary socket buffer limit — required for MSG_ZEROCOPY with large buffers.
+net.core.optmem_max = {{ _tune_optmem_max }}
+
+{% endif %}
+# --- Ancillary settings -----------------------------------------------------
+# MTU probing: required when jumbo frames are used anywhere on the path;
+# prevents black-holes when path MTU drops below interface MTU.
+net.ipv4.tcp_mtu_probing = 1
+
+# Fair-queue packet scheduler: enables per-flow pacing.
+# Preferred by Google BBR team; also improves cubic on long-RTT paths.
+net.core.default_qdisc = fq
+
+# ---------------------------------------------------------------------------
+# The following are intentionally NOT set here.
+# ESNet explicitly recommends leaving these at kernel defaults:
+#
+#   net.ipv4.tcp_timestamps   = 1   DO NOT set to 0 — disabling hurts WAN performance
+#   net.ipv4.tcp_sack         = 1   DO NOT set to 0 — disabling hurts WAN performance
+#   net.ipv4.tcp_congestion_control       leave as cubic; htcp no longer advantageous
+#   net.ipv4.tcp_mem                      kernel calculates this correctly
+# ---------------------------------------------------------------------------

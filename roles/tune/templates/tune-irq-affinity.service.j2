@@ -1,0 +1,16 @@
+# tune-irq-affinity.service — managed by Ansible, do not edit manually.
+# Binds {{ tune_nic_device }} IRQs to NUMA node {{ _nic_numa_node.stdout | trim }} at boot.
+# Requires Mellanox OFED (set_irq_affinity_bynode.sh).
+
+[Unit]
+Description=Bind {{ tune_nic_device }} IRQs to NUMA node {{ _nic_numa_node.stdout | trim }}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart={{ tune_irq_affinity_script }} {{ _nic_numa_node.stdout | trim }} {{ tune_nic_device }}
+
+[Install]
+WantedBy=multi-user.target

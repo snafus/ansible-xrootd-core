@@ -1,0 +1,61 @@
+---
+# Set interface MTU to tune_mtu (default 9000).
+# WARNING: only enable when the full network path (switches, peer NICs)
+# supports jumbo frames.  Enabling on one end of a standard-MTU path
+# causes fragmentation or silent packet loss.
+#
+# Immediate effect: ip link set
+# Persistence: nmcli connection modify (requires NetworkManager)
+
+- name: Assert tune_nic_device is set for jumbo frame configuration
+  ansible.builtin.assert:
+    that: tune_nic_device | length > 0
+    fail_msg: >
+      tune_jumbo_frames_enabled is true but tune_nic_device is empty.
+      Set tune_nic_device to the data transfer interface name.
+
+- name: Read current MTU
+  ansible.builtin.command:
+    cmd: "cat /sys/class/net/{{ tune_nic_device }}/mtu"
+  register: _current_mtu
+  changed_when: false
+
+- name: Set MTU via ip link (immediate)
+  ansible.builtin.command:
+    cmd: "ip link set dev {{ tune_nic_device }} mtu {{ tune_mtu }}"
+  changed_when: true
+  when: _current_mtu.stdout | int != tune_mtu | int
+
+# Persist via NetworkManager.  Find the active connection name for the device,
+# then update it.  failed_when: false — NM may not manage this interface
+# (e.g. kernel bond without NM config), in which case the ip link change
+# takes effect until the next reboot.
+- name: Find NetworkManager connection for device
+  ansible.builtin.command:
+    cmd: "nmcli -g GENERAL.CONNECTION device show {{ tune_nic_device }}"
+  register: _nm_connection
+  changed_when: false
+  failed_when: false
+  when: _current_mtu.stdout | int != tune_mtu | int
+
+- name: Persist MTU via nmcli
+  ansible.builtin.command:
+    cmd: "nmcli connection modify '{{ _nm_connection.stdout | trim }}' 802-3-ethernet.mtu {{ tune_mtu }}"
+  changed_when: true
+  failed_when: false
+  when:
+    - _current_mtu.stdout | int != tune_mtu | int
+    - _nm_connection.rc is defined
+    - _nm_connection.rc == 0
+    - _nm_connection.stdout | trim | length > 0
+
+- name: Warn if MTU persistence could not be confirmed via nmcli
+  ansible.builtin.debug:
+    msg: >
+      tune: MTU set to {{ tune_mtu }} on {{ tune_nic_device }} (immediate effect).
+      Could not persist via nmcli (connection not found or NM not managing this device).
+      Ensure your network configuration sets mtu={{ tune_mtu }} for {{ tune_nic_device }}.
+  when:
+    - _current_mtu.stdout | int != tune_mtu | int
+    - _nm_connection.rc is not defined or _nm_connection.rc != 0
+      or _nm_connection.stdout | trim | length == 0

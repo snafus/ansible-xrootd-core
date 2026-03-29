@@ -1,0 +1,79 @@
+---
+# Resolve speed tier, then deploy /etc/sysctl.d/90-xrootd-net.conf.
+
+# --- Speed tier resolution --------------------------------------------------
+
+- name: Read NIC speed from Ansible facts
+  ansible.builtin.set_fact:
+    _tune_detected_speed: "{{ ansible_facts[tune_nic_device]['speed'] | int }}"
+  when:
+    - tune_nic_speed == 'auto'
+    - tune_nic_device | length > 0
+    - ansible_facts[tune_nic_device] is defined
+
+- name: Warn when NIC speed cannot be detected
+  ansible.builtin.debug:
+    msg: >
+      tune: cannot detect NIC speed
+      (tune_nic_device='{{ tune_nic_device }}',
+       reported speed={{ _tune_detected_speed | default('undefined') }} Mbps).
+      Falling back to 10g buffer preset.
+      Set tune_nic_speed explicitly (10g | 40g | 100g) to override.
+  when:
+    - tune_nic_speed == 'auto'
+    - _tune_detected_speed is not defined or _tune_detected_speed | int <= 0
+
+- name: Map detected NIC speed to buffer tier
+  ansible.builtin.set_fact:
+    _tune_speed_tier: >-
+      {%- set s = _tune_detected_speed | int -%}
+      {%- if s > 40000 -%}100g{%- elif s > 10000 -%}40g{%- else -%}10g{%- endif -%}
+  when:
+    - tune_nic_speed == 'auto'
+    - _tune_detected_speed is defined
+    - _tune_detected_speed | int > 0
+
+- name: Set fallback speed tier when detection fails
+  ansible.builtin.set_fact:
+    _tune_speed_tier: "10g"
+  when:
+    - tune_nic_speed == 'auto'
+    - _tune_speed_tier is not defined
+
+- name: Use explicit speed tier
+  ansible.builtin.set_fact:
+    _tune_speed_tier: "{{ tune_nic_speed }}"
+  when: tune_nic_speed != 'auto'
+
+- name: Show resolved speed tier
+  ansible.builtin.debug:
+    msg: >-
+      tune: speed tier = {{ _tune_speed_tier }}
+      {%- if tune_nic_speed == 'auto' %}
+      (auto from {{ tune_nic_device | default('(no device)') }}
+      = {{ _tune_detected_speed | default('?') }} Mbps)
+      {%- else %} (explicit)
+      {%- endif %}
+
+# --- Resolve final sysctl values (preset + per-variable overrides) ----------
+# tune_rmem_max etc. default to "" — the `default(x, true)` filter treats
+# empty string as unset and falls through to the tier preset.
+
+- name: Resolve sysctl values from tier preset and overrides
+  ansible.builtin.set_fact:
+    _tune_rmem_max:   "{{ tune_rmem_max   | default(_tune_presets[_tune_speed_tier]['rmem_max'],   true) }}"
+    _tune_wmem_max:   "{{ tune_wmem_max   | default(_tune_presets[_tune_speed_tier]['wmem_max'],   true) }}"
+    _tune_tcp_rmem:   "{{ tune_tcp_rmem   | default(_tune_presets[_tune_speed_tier]['tcp_rmem'],   true) }}"
+    _tune_tcp_wmem:   "{{ tune_tcp_wmem   | default(_tune_presets[_tune_speed_tier]['tcp_wmem'],   true) }}"
+    _tune_optmem_max: "{{ tune_optmem_max | default(_tune_presets[_tune_speed_tier]['optmem_max'], true) }}"
+
+# --- Deploy sysctl drop-in --------------------------------------------------
+
+- name: Deploy sysctl network tuning drop-in
+  ansible.builtin.template:
+    src: 90-xrootd-net.conf.j2
+    dest: /etc/sysctl.d/90-xrootd-net.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sysctl

@@ -1,0 +1,60 @@
+---
+# NIC tuning via ethtool.
+# All commands use failed_when: false — not all drivers support all features.
+# Ring buffer tuning is skipped on kernel >= 6.8 per ESNet guidance.
+
+- name: Assert tune_nic_device is set for ethtool configuration
+  ansible.builtin.assert:
+    that: tune_nic_device | length > 0
+    fail_msg: >
+      tune_ethtool_enabled is true but tune_nic_device is empty.
+      Set tune_nic_device to the data transfer interface name.
+
+- name: Install ethtool
+  ansible.builtin.package:
+    name: ethtool
+    state: present
+
+# Ring buffer recommendation was removed by ESNet for kernel >= 6.8.
+- name: Parse kernel version for ring buffer guard
+  ansible.builtin.set_fact:
+    _tune_kernel_version: "{{ ansible_facts['kernel'] | regex_replace('^(\\d+\\.\\d+).*$', '\\1') | float }}"
+
+- name: Set NIC ring buffer sizes (kernel < 6.8 only)
+  ansible.builtin.command:
+    cmd: >
+      /usr/sbin/ethtool -G {{ tune_nic_device }}
+      rx {{ tune_ethtool_ring_rx }}
+      tx {{ tune_ethtool_ring_tx }}
+  changed_when: true
+  failed_when: false
+  when: _tune_kernel_version | float < 6.8
+
+- name: Note ring buffer tuning skipped on kernel >= 6.8
+  ansible.builtin.debug:
+    msg: >
+      tune: skipping ring buffer tuning on kernel {{ ansible_facts['kernel'] }}
+      (ESNet no longer recommends this on kernel >= 6.8; leave at driver defaults).
+  when: _tune_kernel_version | float >= 6.8
+
+# Adaptive coalescing reduces interrupt rate under load; improves CPU efficiency.
+# On by default for Mellanox; off by default for Intel — enable explicitly.
+- name: Enable adaptive interrupt coalescing
+  ansible.builtin.command:
+    cmd: >
+      /usr/sbin/ethtool -C {{ tune_nic_device }}
+      adaptive-rx {{ tune_ethtool_coalesce_adaptive_rx }}
+      adaptive-tx {{ tune_ethtool_coalesce_adaptive_tx }}
+  changed_when: true
+  failed_when: false
+
+# Flow control (pause frames) prevents buffer overflow at the receiver.
+# Intel ICE driver does not enable this by default — must be explicit.
+- name: Enable flow control pause frames
+  ansible.builtin.command:
+    cmd: >
+      /usr/sbin/ethtool -A {{ tune_nic_device }}
+      rx {{ tune_ethtool_flowcontrol_rx }}
+      tx {{ tune_ethtool_flowcontrol_tx }}
+  changed_when: true
+  failed_when: false

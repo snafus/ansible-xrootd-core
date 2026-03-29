@@ -1,0 +1,40 @@
+---
+# Deploy a systemd oneshot service that applies tc fq qdisc at boot.
+# tc commands are not persistent across reboots — the service re-applies them.
+
+- name: Assert tune_nic_device is set for qdisc configuration
+  ansible.builtin.assert:
+    that: tune_nic_device | length > 0
+    fail_msg: >
+      tune_qdisc_enabled is true but tune_nic_device is empty.
+      Set tune_nic_device to the data transfer interface name (e.g. bond0, ens1f0).
+      This cannot be determined automatically on multi-interface hosts.
+
+- name: Install iproute2 (tc)
+  ansible.builtin.package:
+    name: iproute2
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Install iproute (tc) — Rocky
+  ansible.builtin.package:
+    name: iproute
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Deploy tc fq qdisc systemd unit
+  ansible.builtin.template:
+    src: tune-qdisc.service.j2
+    dest: /etc/systemd/system/tune-qdisc.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+    - Restart tune-qdisc
+
+- name: Enable tune-qdisc service
+  ansible.builtin.systemd:
+    name: tune-qdisc.service
+    enabled: true
+    daemon_reload: true

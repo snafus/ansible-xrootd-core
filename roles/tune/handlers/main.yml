@@ -1,0 +1,27 @@
+---
+- name: Reload sysctl
+  ansible.builtin.command:
+    cmd: sysctl --system
+  changed_when: false
+
+- name: Reload systemd daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart tune-qdisc
+  ansible.builtin.systemd:
+    name: tune-qdisc.service
+    state: restarted
+  failed_when: false
+
+- name: Restart tune-cpu-governor
+  ansible.builtin.systemd:
+    name: tune-cpu-governor.service
+    state: restarted
+  failed_when: false
+
+- name: Restart tune-irq-affinity
+  ansible.builtin.systemd:
+    name: tune-irq-affinity.service
+    state: restarted
+  failed_when: false

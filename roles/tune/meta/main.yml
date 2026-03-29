@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: tune
+  description: >
+    Kernel and NIC performance tuning for XRootD data transfer nodes,
+    based on ESNet fasterdata.es.net recommendations.
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions: [8, 9]
+    - name: Ubuntu
+      versions: [jammy, noble]
+
+dependencies: []
