@@ -81,18 +81,32 @@ jobs:
   # To expand coverage, uncomment additional entries under matrix.distro.
   # --------------------------------------------------------------------------
   molecule:
-    name: "Molecule (${{ matrix.distro }})"
+    name: "Molecule (${{ matrix.scenario }} / ${{ matrix.distro }})"
     runs-on: ubuntu-latest
     needs: syntax-check
 
     strategy:
       fail-fast: false
       matrix:
-        distro:
-          - rockylinux9
-          # - rockylinux8   # Rocky Linux 8
-          - ubuntu2204      # Ubuntu 22.04 LTS (Jammy)
-          # - ubuntu2404    # Ubuntu 24.04 LTS (Noble)
+        include:
+          # default: self_signed cert, ca_mode=file
+          - scenario: default
+            distro: rockylinux9
+          - scenario: default
+            distro: ubuntu2204
+          # grid_egi: EGI IGTF trust anchors + fetch-crl
+          - scenario: grid_egi
+            distro: rockylinux9
+          - scenario: grid_egi
+            distro: ubuntu2204
+          # grid_osg: OSG/CILogon trust anchors (Rocky only)
+          - scenario: grid_osg
+            distro: rockylinux9
+          # cert_external: operator-supplied certificate (controller path mode)
+          - scenario: cert_external
+            distro: rockylinux9
+          - scenario: cert_external
+            distro: ubuntu2204
 
     steps:
       - name: Checkout
@@ -110,7 +124,7 @@ jobs:
         run: ansible-galaxy collection install -r requirements.yml
 
       - name: Run Molecule
-        run: molecule test
+        run: molecule test -s ${{ matrix.scenario }}
         env:
           MOLECULE_DISTRO: ${{ matrix.distro }}
         working-directory: ${{ github.workspace }}

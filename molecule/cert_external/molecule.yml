@@ -1,0 +1,47 @@
+---
+# Molecule cert_external scenario — operator-supplied certificate (controller path mode)
+# cert_mode: external, ca_mode: file
+# prepare.yml generates a throwaway cert on the Ansible controller; paths are
+# referenced via xrootd_ext_cert_src / xrootd_ext_key_src / xrootd_ext_ca_src.
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  - name: "xrootd-${MOLECULE_DISTRO:-rockylinux9}"
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-rockylinux9}-ansible:latest"
+    command: /usr/lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+    ANSIBLE_INJECT_FACTS_AS_VARS: "False"
+  inventory:
+    group_vars:
+      all:
+        ansible_user: root
+        xrootd_data_path: /data/xrootd
+        xrootd_cert_mode: external
+        xrootd_ca_mode: file
+        xrootd_ext_cert_src: /tmp/molecule-test.crt
+        xrootd_ext_key_src: /tmp/molecule-test.key
+        xrootd_ext_ca_src: /tmp/molecule-test.crt
+        xrootd_tls_enabled: false
+        xrootd_http_enabled: false
+        xrootd_http_tpc_enabled: false
+  options:
+    diff: true
+
+verifier:
+  name: ansible

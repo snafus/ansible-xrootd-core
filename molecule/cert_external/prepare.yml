@@ -1,0 +1,49 @@
+---
+# Step 1: generate a throwaway cert on the Ansible controller.
+# Step 2: install xrootd packages on the target host.
+#
+# The cert is self-signed and used as both the server cert and CA bundle,
+# which is valid for the external cert mode test (ca_mode: file).
+
+- name: Generate throwaway test certificate (Ansible controller)
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Generate self-signed test key and certificate
+      ansible.builtin.command:
+        cmd: >
+          openssl req -x509 -newkey rsa:2048 -days 1 -nodes
+          -keyout /tmp/molecule-test.key
+          -out /tmp/molecule-test.crt
+          -subj "/CN=molecule-cert-external-test"
+        creates: /tmp/molecule-test.crt
+
+- name: Prepare XRootD host
+  hosts: all
+  gather_facts: true
+  become: false
+  tasks:
+    - name: Install EPEL repository (Rocky/RHEL family)
+      ansible.builtin.dnf:
+        name: epel-release
+        state: present
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Install xrootd from EPEL (Rocky)
+      ansible.builtin.dnf:
+        name:
+          - xrootd
+          - xrootd-server
+          - xrootd-client
+        state: present
+        enablerepo: epel
+      when: ansible_facts['os_family'] == 'RedHat'
+
+    - name: Install xrootd from Ubuntu universe
+      ansible.builtin.apt:
+        name:
+          - xrootd-server
+          - xrootd-client
+        state: present
+        update_cache: true
+      when: ansible_facts['os_family'] == 'Debian'

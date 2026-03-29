@@ -1,0 +1,44 @@
+---
+# Molecule grid_egi scenario — EGI IGTF trust anchors + fetch-crl
+# cert_mode: self_signed, ca_mode: grid, ca_bundle_provider: egi
+# Tested on Rocky 9 and Ubuntu 22.04.
+
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  - name: "xrootd-${MOLECULE_DISTRO:-rockylinux9}"
+    image: "geerlingguy/docker-${MOLECULE_DISTRO:-rockylinux9}-ansible:latest"
+    command: /usr/lib/systemd/systemd
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+    ANSIBLE_INJECT_FACTS_AS_VARS: "False"
+  inventory:
+    group_vars:
+      all:
+        ansible_user: root
+        xrootd_data_path: /data/xrootd
+        xrootd_cert_mode: self_signed
+        xrootd_ca_mode: grid
+        xrootd_ca_bundle_provider: egi
+        xrootd_tls_enabled: false
+        xrootd_http_enabled: false
+        xrootd_http_tpc_enabled: false
+  options:
+    diff: true
+
+verifier:
+  name: ansible
