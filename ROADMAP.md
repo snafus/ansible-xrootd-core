@@ -452,13 +452,48 @@ Reference: ESNet fasterdata.es.net (last reviewed 2026-03-29).
 | `irq_affinity.yml` | Disable irqbalance, deploy IRQ affinity systemd unit | No |
 | `grub.yml` | IOMMU passthrough + optional SMT disable in grub | **Yes** |
 
+### NIC identification — why it cannot be automatic
+
+On a multi-interface, multi-bond node a typical interface list looks like:
+
+```
+lo  eno1  ens1f0  ens1f1  bond0  bond1  vlan100  docker0
+```
+
+There is no programmatic way to identify the *data transfer* NIC. A node
+commonly has distinct interfaces for management (SSH/Ansible), data
+(XRootD transfers), storage backend (Ceph/NFS), and out-of-band.
+Which is which is **site topology knowledge** — it cannot be inferred from
+the host.
+
+`tune_nic_device` therefore has no default and **must be set explicitly**
+in the inventory, at host level when nodes differ. NIC-specific tasks
+(`qdisc`, `ethtool`, `jumbo_frames`, `irq_affinity`) assert it is non-empty
+and fail with a descriptive message if it is not set.
+
+`tune_nic_speed: auto` is still valid — it reads
+`ansible_facts[tune_nic_device]['speed']` (in Mbps) **after** the operator
+has identified the correct NIC. Auto-detection maps:
+
+| Detected speed | Buffer tier |
+|---|---|
+| ≤ 10 000 Mbps | `10g` |
+| 10 001 – 40 000 Mbps | `40g` (covers 25G and 40G) |
+| > 40 000 Mbps | `100g` (covers 50G, 100G, 200G) |
+
+When detection fails (virtual NIC reports `-1`, or `tune_nic_device` is
+unset) the role warns and falls back to `10g`.
+
 ### Key variables
 
 ```yaml
-tune_nic_speed: 10g            # 10g | 40g | 100g — selects ESNet buffer preset
-tune_nic_device: ""            # NIC name (e.g. eth0) — required for ethtool/tc/MTU
+# tune_nic_device has no default — must be set at host level in inventory.
+# See hosts.yml.example for the recommended multi-host pattern.
+tune_nic_device: ""            # data-transfer NIC name: bond0, ens1f0, eth1 …
+tune_nic_speed: auto           # auto | 10g | 40g | 100g
+                               # auto: detect from ansible_facts[tune_nic_device].speed
 
-tune_sysctl_enabled: true      # TCP buffer sysctl drop-in (always safe)
+tune_sysctl_enabled: true      # TCP buffer sysctl drop-in (always safe, no NIC needed)
 tune_qdisc_enabled: false      # tc fq qdisc via systemd unit
 tune_ethtool_enabled: false    # ring buffers, adaptive coalescing, flow control
 tune_jumbo_frames_enabled: false    # MTU 9000 — only if full path supports it

@@ -1,16 +1,59 @@
 ---
-# Example inventory — copy to hosts.yml and edit
-# hosts.yml is gitignored; this example is always committed
+# Example inventory — copy to hosts.yml and edit.
+# hosts.yml is gitignored; this example is always committed.
+#
+# tune_nic_device must be set at host level — it cannot be determined
+# automatically on multi-interface / multi-bond nodes.  See ROADMAP.md
+# (Role: tune) for the reasoning.
+
 all:
   children:
     xrootd_servers:
       hosts:
-        # Single standalone server (minimal config)
-        myserver.example.org:
-          ansible_user: rocky           # or: ubuntu
 
-        # Server with explicit overrides
-        # myserver2.example.org:
-        #   ansible_user: ubuntu
-        #   xrootd_data_path: /mnt/data/xrootd
+        # ------------------------------------------------------------------
+        # Minimal — single server, self-signed cert, no performance tuning
+        # ------------------------------------------------------------------
+        myserver.example.org:
+          ansible_user: rocky         # or: ubuntu
+
+        # ------------------------------------------------------------------
+        # Typical DTN — 25G bond, auto-detected speed tier (→ 40g preset),
+        # sysctl + qdisc enabled; ethtool and jumbo frames opt-in
+        # ------------------------------------------------------------------
+        # dtn-01.example.org:
+        #   ansible_user: rocky
         #   xrootd_cert_mode: certbot_production
+        #   tune_nic_device: bond0    # 2 × 25G LACP → auto detects 50 Gbps → 40g tier
+        #   tune_nic_speed: auto
+        #   tune_qdisc_enabled: true
+        #   tune_ethtool_enabled: true
+
+        # ------------------------------------------------------------------
+        # High-throughput bare-metal — 100G Mellanox, full tuning stack
+        # IOMMU and SMT flags require a reboot (tune_grub_reboot: true)
+        # ------------------------------------------------------------------
+        # dtn-02.example.org:
+        #   ansible_user: rocky
+        #   xrootd_cert_mode: certbot_production
+        #   xrootd_jemalloc_enabled: true
+        #   tune_nic_device: ens1f0   # single 100G Mellanox port
+        #   tune_nic_speed: auto      # detects 100 000 Mbps → 100g tier
+        #   tune_qdisc_enabled: true
+        #   tune_ethtool_enabled: true
+        #   tune_jumbo_frames_enabled: true
+        #   tune_cpu_governor_enabled: true
+        #   tune_irq_affinity_enabled: true   # requires Mellanox OFED
+        #   tune_grub_iommu_enabled: true     # REQUIRES REBOOT
+        #   tune_grub_smt_disable: true       # REQUIRES REBOOT
+        #   tune_grub_reboot: true            # reboot automatically after grub changes
+
+        # ------------------------------------------------------------------
+        # VM / cloud instance — virtual NIC reports speed = -1,
+        # so speed tier must be set explicitly; NIC-specific tuning skipped
+        # ------------------------------------------------------------------
+        # dtn-03.example.org:
+        #   ansible_user: ubuntu
+        #   tune_nic_device: eth0
+        #   tune_nic_speed: 10g       # explicit — VM NIC reports -1 for speed
+        #   # tune_qdisc_enabled, ethtool, jumbo_frames left false for VMs
