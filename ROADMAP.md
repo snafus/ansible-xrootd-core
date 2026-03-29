@@ -40,6 +40,7 @@ ansible-xrootd-core/
     ├── common/                               # OS prep, repos, firewall, chrony
     ├── certificates/                         # TLS cert management (4 modes)
     ├── xrootd/                               # install, configure, run XRootD
+    ├── tune/                                 # kernel + NIC performance tuning (phase 1e, planned)
     └── xrootd_redirector/                    # HA redirector (phase 2 stub)
 ```
 
@@ -366,7 +367,7 @@ auth/scitokens/macaroons off.
 
 ## Known Gaps
 
-*No known gaps at this time.*  See Phased Delivery below for planned Phase 2 work.
+*No known gaps at this time.*  See Phased Delivery below for planned work.
 
 ---
 
@@ -380,6 +381,7 @@ auth/scitokens/macaroons off.
 | 1b | `certificates` role: all 4 cert modes, vault integration |
 | 1c | `xrootd` role: install, dirs, firewall ports, configure, service, validate |
 | 1d | Playbooks, inventory examples, `ansible.cfg`, `.gitignore` |
+| 1e | `tune` role: kernel + NIC performance tuning *(planned — see below)* |
 
 ### Phase 2 — HA Redirector
 
@@ -399,6 +401,96 @@ auth/scitokens/macaroons off.
 - Rucio Storage Element integration
 - Prometheus/node-exporter + xrootd monitoring exporter
 - Logrotate configuration
+
+---
+
+## Role: `tune` *(Phase 1e — planned)*
+
+### Purpose
+
+Apply ESNet ([fasterdata.es.net](https://fasterdata.es.net)) recommended kernel
+and NIC performance tuning for high-speed data transfer.  Designed for
+Data Transfer Nodes (DTNs) running XRootD at Tier-1 / SRCNet scale
+(10G, 40G, 100G). All tuning is opt-in and off by default except the
+core sysctl settings.
+
+Reference: ESNet fasterdata.es.net (last reviewed 2026-03-29).
+
+### Design decisions
+
+- **`tune_nic_speed` drives sysctl buffer presets** — operators choose `10g`, `40g`,
+  or `100g`; ESNet-recommended `rmem_max`, `wmem_max`, `tcp_rmem`, `tcp_wmem`
+  are set automatically.  Every individual parameter is also overridable.
+- **sysctl drop-in at `90-xrootd-net.conf`** — the `90-` prefix sits above distro
+  defaults (60-) and below operator overrides (99-).
+- **ESNet "do not touch" params are explicitly excluded** — `tcp_timestamps`,
+  `tcp_sack`, `tcp_congestion_control`, `tcp_mem` are commented out in the
+  template with the reason documented.  ESNet explicitly warns against disabling
+  timestamps and SACK.
+- **`qdisc` runs as a systemd unit** — `tc` commands do not survive reboot.
+  A `tune-qdisc.service` (`Type=oneshot RemainAfterExit=yes`) re-applies on boot.
+- **grub tasks (IOMMU, SMT) are double-gated** — variable default is `false`,
+  and the task emits an explicit `debug` warning that a reboot is pending.
+  An optional `tune_grub_reboot: false` variable triggers `ansible.builtin.reboot`
+  if set to `true`.
+- **`tune_nic_device` guard** — tasks that target a specific NIC (`qdisc`,
+  `ethtool`, `jumbo_frames`, `irq_affinity`) skip with a clear `fail_msg`
+  if `tune_nic_device` is empty.  No silent no-ops.
+- **IRQ affinity requires OFED** — the `set_irq_affinity_bynode.sh` script is
+  shipped with Mellanox OFED; the task checks for its presence and skips gracefully
+  on non-Mellanox / vanilla kernel nodes.
+
+### Task files
+
+| File | Purpose | Reboot? |
+|------|---------|---------|
+| `sysctl.yml` | Deploy `90-xrootd-net.conf`, reload sysctl | No |
+| `qdisc.yml` | Deploy and enable `tune-qdisc.service` (`tc fq`) | No |
+| `ethtool.yml` | Ring buffers, adaptive coalescing, flow control pause frames | No |
+| `jumbo_frames.yml` | Set MTU 9000 via nmcli (persistent) | No |
+| `cpu_governor.yml` | Install cpupower, set `performance` governor | No |
+| `irq_affinity.yml` | Disable irqbalance, deploy IRQ affinity systemd unit | No |
+| `grub.yml` | IOMMU passthrough + optional SMT disable in grub | **Yes** |
+
+### Key variables
+
+```yaml
+tune_nic_speed: 10g            # 10g | 40g | 100g — selects ESNet buffer preset
+tune_nic_device: ""            # NIC name (e.g. eth0) — required for ethtool/tc/MTU
+
+tune_sysctl_enabled: true      # TCP buffer sysctl drop-in (always safe)
+tune_qdisc_enabled: false      # tc fq qdisc via systemd unit
+tune_ethtool_enabled: false    # ring buffers, adaptive coalescing, flow control
+tune_jumbo_frames_enabled: false    # MTU 9000 — only if full path supports it
+tune_cpu_governor_enabled: false    # performance governor (recommended for 100G)
+tune_irq_affinity_enabled: false    # NUMA IRQ binding (Mellanox/NVIDIA nodes only)
+tune_grub_iommu_enabled: false      # IOMMU=pt kernel param (REQUIRES REBOOT)
+tune_grub_smt_disable: false        # disable SMT/HT (REQUIRES REBOOT)
+tune_grub_reboot: false             # if true, reboot immediately after grub changes
+```
+
+### ESNet buffer presets
+
+| Speed | `rmem_max` / `wmem_max` | `tcp_rmem` max | `tcp_wmem` max | Notes |
+|-------|------------------------|----------------|----------------|-------|
+| `10g` | 64 MB | 32 MB | 32 MB | Multi-stream, ≤ 100ms RTT |
+| `40g` | 128 MB | 64 MB | 64 MB | Also: 10G ≤ 200ms RTT |
+| `100g` | 2 GB | 1 GB | 1 GB | Adds `optmem_max = 1048576` |
+
+Always set regardless of speed: `tcp_mtu_probing = 1`, `default_qdisc = fq`.
+
+### Integration
+
+- New playbook `playbooks/tune.yml` — standalone, can be run independently
+  or before a full server deploy.
+- `xrootd_server.yml` gains an optional first role gated by
+  `tune_enabled: false` so existing deployments are unaffected.
+
+### Molecule / CI
+
+Sysctl tasks work in the existing privileged Docker scenario (container
+inherits host kernel; `sysctl -w` succeeds in privileged mode).
+The grub/reboot tasks require a VM-based scenario — deferred to Phase 3.
 
 ---
 
