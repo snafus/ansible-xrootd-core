@@ -40,13 +40,23 @@
     state: present
     update_cache: true
 
-# xrootd --version writes to stderr; capture both streams.
-- name: Get installed XRootD version
-  ansible.builtin.command: xrootd --version
+# xrootd does not support --version; query the package manager instead.
+- name: Get installed XRootD version (Rocky)
+  ansible.builtin.command:
+    cmd: rpm -q xrootd --queryformat '%{NAME}-%{VERSION}-%{RELEASE}\n'
   register: _xrootd_version_result
   changed_when: false
   failed_when: false
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Get installed XRootD version (Ubuntu)
+  ansible.builtin.command:
+    cmd: dpkg-query -W -f='${Package} ${Version}\n' xrootd-server
+  register: _xrootd_version_result
+  changed_when: false
+  failed_when: false
+  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Show installed XRootD version
   ansible.builtin.debug:
-    msg: "XRootD: {{ (_xrootd_version_result.stderr | default('') + _xrootd_version_result.stdout | default('')) | trim }}"
+    msg: "XRootD: {{ _xrootd_version_result.stdout | default('unknown') | trim }}"
