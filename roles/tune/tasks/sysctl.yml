@@ -48,12 +48,7 @@
 - name: Show resolved speed tier
   ansible.builtin.debug:
     msg: >-
-      tune: speed tier = {{ _tune_speed_tier }}
-      {%- if tune_nic_speed == 'auto' %}
-      (auto from {{ tune_nic_device | default('(no device)') }}
-      = {{ _tune_detected_speed | default('?') }} Mbps)
-      {%- else %} (explicit)
-      {%- endif %}
+      tune: speed tier = {{ _tune_speed_tier }}{%- if tune_nic_speed == 'auto' %} (auto from {{ tune_nic_device | default('(no device)') }} = {{ _tune_detected_speed | default('?') }} Mbps){%- else %} (explicit){%- endif %}
 
 # --- Resolve final sysctl values (preset + per-variable overrides) ----------
 # tune_rmem_max etc. default to "" — the `default(x, true)` filter treats
@@ -61,10 +56,10 @@
 
 - name: Resolve sysctl values from tier preset and overrides
   ansible.builtin.set_fact:
-    _tune_rmem_max:   "{{ tune_rmem_max   | default(_tune_presets[_tune_speed_tier]['rmem_max'],   true) }}"
-    _tune_wmem_max:   "{{ tune_wmem_max   | default(_tune_presets[_tune_speed_tier]['wmem_max'],   true) }}"
-    _tune_tcp_rmem:   "{{ tune_tcp_rmem   | default(_tune_presets[_tune_speed_tier]['tcp_rmem'],   true) }}"
-    _tune_tcp_wmem:   "{{ tune_tcp_wmem   | default(_tune_presets[_tune_speed_tier]['tcp_wmem'],   true) }}"
+    _tune_rmem_max: "{{ tune_rmem_max | default(_tune_presets[_tune_speed_tier]['rmem_max'], true) }}"
+    _tune_wmem_max: "{{ tune_wmem_max | default(_tune_presets[_tune_speed_tier]['wmem_max'], true) }}"
+    _tune_tcp_rmem: "{{ tune_tcp_rmem | default(_tune_presets[_tune_speed_tier]['tcp_rmem'], true) }}"
+    _tune_tcp_wmem: "{{ tune_tcp_wmem | default(_tune_presets[_tune_speed_tier]['tcp_wmem'], true) }}"
     _tune_optmem_max: "{{ tune_optmem_max | default(_tune_presets[_tune_speed_tier]['optmem_max'], true) }}"
 
 # --- Deploy sysctl drop-in --------------------------------------------------

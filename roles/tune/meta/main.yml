@@ -1,6 +1,7 @@
 ---
 galaxy_info:
   role_name: tune
+  author: ansible-xrootd-core
   description: >
     Kernel and NIC performance tuning for XRootD data transfer nodes,
     based on ESNet fasterdata.es.net recommendations.

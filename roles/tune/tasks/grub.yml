@@ -16,10 +16,7 @@
 - name: Detect CPU vendor
   ansible.builtin.set_fact:
     _tune_cpu_vendor: >-
-      {%- if 'GenuineIntel' in ansible_facts['processor'] -%}intel
-      {%- elif 'AuthenticAMD' in ansible_facts['processor'] -%}amd
-      {%- else -%}unknown
-      {%- endif -%}
+      {%- if 'GenuineIntel' in ansible_facts['processor'] -%}intel{%- elif 'AuthenticAMD' in ansible_facts['processor'] -%}amd{%- else -%}unknown{%- endif -%}
   when: tune_grub_iommu_enabled | bool
 
 - name: Warn if CPU vendor cannot be determined for IOMMU
@@ -79,12 +76,13 @@
   when: _grub_cmdline_new | trim != _grub_cmdline_current | trim
 
 # --- Regenerate grub config -------------------------------------------------
+# Check for EFI unconditionally (cheap stat); regeneration tasks guard on
+# _grub_updated.  Avoids no-handler lint on a task conditioned by 'is changed'.
 
 - name: Check for EFI boot
   ansible.builtin.stat:
     path: /sys/firmware/efi
   register: _efi_stat
-  when: _grub_updated is changed
 
 - name: Regenerate grub — Rocky BIOS
   ansible.builtin.command:
@@ -120,7 +118,7 @@
     msg: >
       tune: grub updated with: {{ _tune_grub_params | join(' ') }}.
       Reboot pending{% if tune_grub_reboot | bool %} — rebooting now{% else %} — reboot manually to apply{% endif %}.
-  when: _grub_updated is changed
+  when: _grub_cmdline_new | trim != _grub_cmdline_current | trim
 
 - name: Reboot to apply kernel parameters
   ansible.builtin.reboot:
