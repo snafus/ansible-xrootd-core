@@ -65,7 +65,7 @@
         name: egi-trustanchors
         description: EGI Trust Anchors
         baseurl: https://repository.egi.eu/sw/production/cas/1/current/
-        gpgkey: https://dist.eugridpma.info/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+        gpgkey: https://repository.egi.eu/sw/production/cas/1/GPG-KEY-EUGridPMA-RPM-4
         gpgcheck: true
         enabled: true
       when:
@@ -76,7 +76,7 @@
     # import the key into the RPM keyring — rpm_key must do that explicitly.
     - name: Import EGI trust anchors GPG key into RPM keyring (Rocky)
       ansible.builtin.rpm_key:
-        key: https://dist.eugridpma.info/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+        key: https://repository.egi.eu/sw/production/cas/1/GPG-KEY-EUGridPMA-RPM-4
         state: present
       when:
         - xrootd_ca_bundle_provider == 'egi'
