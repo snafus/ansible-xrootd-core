@@ -1,5 +1,12 @@
 # systemd resource limits for xrootd@.service — managed by Ansible, do not edit manually.
-# Override via xrootd_limit_nofile / xrootd_limit_nproc in your inventory.
+# Override via xrootd_limit_nofile / xrootd_limit_nproc / xrootd_jemalloc_enabled.
 [Service]
 LimitNOFILE={{ xrootd_limit_nofile }}
 LimitNPROC={{ xrootd_limit_nproc }}
+{% if xrootd_jemalloc_enabled | bool %}
+{% if ansible_facts['os_family'] == 'RedHat' %}
+Environment=LD_PRELOAD=/usr/lib64/libjemalloc.so.2
+{% else %}
+Environment=LD_PRELOAD=/usr/lib/{{ ansible_facts['userspace_architecture'] }}-linux-gnu/libjemalloc.so.2
+{% endif %}
+{% endif %}

@@ -112,6 +112,10 @@ xrootd_site_name: "{{ inventory_hostname }}"
 # Set to "infinity" to remove the cap entirely (requires CAP_SYS_RESOURCE).
 xrootd_limit_nofile: 1048576   # LimitNOFILE — open file descriptors
 xrootd_limit_nproc:  65536     # LimitNPROC  — threads / sub-processes
+# Preload jemalloc to reduce allocator lock contention under high concurrency.
+# Recommended for Tier-1 / SRCNet nodes handling many simultaneous transfers.
+# Installs the OS package and sets LD_PRELOAD in the systemd drop-in.
+xrootd_jemalloc_enabled: false
 
 # --- User / group -----------------------------------------------------------
 xrootd_user:      xrootd   # service account name

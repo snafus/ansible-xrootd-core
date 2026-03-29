@@ -6,14 +6,16 @@
   ansible.builtin.set_fact:
     _xrootd_packages: >-
       {{ _xrootd_base_packages_rocky +
-         (['xrootd-scitokens'] if xrootd_scitokens_enabled | bool else []) }}
+         (['xrootd-scitokens'] if xrootd_scitokens_enabled | bool else []) +
+         (['jemalloc'] if xrootd_jemalloc_enabled | bool else []) }}
   when: ansible_facts['os_family'] == 'RedHat'
 
 - name: Build package list (Ubuntu)
   ansible.builtin.set_fact:
     _xrootd_packages: >-
       {{ _xrootd_base_packages_ubuntu +
-         (['xrootd-scitokens-plugins'] if xrootd_scitokens_enabled | bool else []) }}
+         (['xrootd-scitokens-plugins'] if xrootd_scitokens_enabled | bool else []) +
+         (['libjemalloc2'] if xrootd_jemalloc_enabled | bool else []) }}
   when: ansible_facts['os_family'] == 'Debian'
 
 # RPM version spec: xrootd-5.6.9  (dash-separated)
