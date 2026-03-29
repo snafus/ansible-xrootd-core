@@ -154,28 +154,13 @@
           No CRL files (*.r0) in /etc/grid-security/certificates —
           fetch-crl may not have run or all endpoints were unreachable.
 
-    - name: Check fetch-crl timer is enabled (Rocky)
-      ansible.builtin.systemd:
-        name: fetch-crl-cron.timer
-      register: _crl_timer
-      when: ansible_facts['os_family'] == 'RedHat'
-
-    - name: Assert fetch-crl-cron.timer is enabled (Rocky)
-      ansible.builtin.assert:
-        that:
-          - _crl_timer.status.UnitFileState in ['enabled', 'enabled-runtime']
-        fail_msg: "fetch-crl-cron.timer is not enabled: {{ _crl_timer.status.UnitFileState }}"
-      when: ansible_facts['os_family'] == 'RedHat'
-
-    - name: Check fetch-crl timer is enabled (Ubuntu)
+    - name: Check fetch-crl.timer is enabled
       ansible.builtin.systemd:
         name: fetch-crl.timer
       register: _crl_timer
-      when: ansible_facts['os_family'] == 'Debian'
 
-    - name: Assert fetch-crl.timer is enabled (Ubuntu)
+    - name: Assert fetch-crl.timer is enabled
       ansible.builtin.assert:
         that:
           - _crl_timer.status.UnitFileState in ['enabled', 'enabled-runtime']
         fail_msg: "fetch-crl.timer is not enabled: {{ _crl_timer.status.UnitFileState }}"
-      when: ansible_facts['os_family'] == 'Debian'

@@ -95,7 +95,7 @@
     # --- EGI IGTF trust anchors (Ubuntu) ----------------------------------------
     - name: Download EGI trust anchors GPG key (Ubuntu)
       ansible.builtin.get_url:
-        url: https://dist.eugridpma.info/distribution/igtf/current/GPG-KEY-EUGridPMA-RPM-3
+        url: https://repository.egi.eu/sw/production/cas/1/current/GPG-KEY-EUGridPMA-RPM-4
         dest: /tmp/egi-trustanchors-gpg.asc
         mode: "0644"
       when:
@@ -175,19 +175,9 @@
       changed_when: false
       failed_when: false
 
-    # Timer name differs between distro packages:
-    #   EGI RPM (Rocky/RHEL): fetch-crl-cron.timer
-    #   Ubuntu deb:           fetch-crl.timer
-    - name: Enable fetch-crl periodic refresh timer (Rocky)
-      ansible.builtin.systemd:
-        name: fetch-crl-cron.timer
-        enabled: true
-        state: started
-      when: ansible_facts['os_family'] == 'RedHat'
-
-    - name: Enable fetch-crl periodic refresh timer (Ubuntu)
+    # Both the EGI RPM (Rocky/RHEL) and the Ubuntu deb ship fetch-crl.timer.
+    - name: Enable fetch-crl periodic refresh timer
       ansible.builtin.systemd:
         name: fetch-crl.timer
         enabled: true
         state: started
-      when: ansible_facts['os_family'] == 'Debian'
