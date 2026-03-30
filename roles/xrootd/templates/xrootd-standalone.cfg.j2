@@ -2,8 +2,7 @@
 # Host: {{ inventory_hostname }}
 
 # --- Namespace --------------------------------------------------------------
-all.export {{ xrootd_data_path }}
-{% for _export in xrootd_extra_exports %}
+{% for _export in xrootd_exports %}
 all.export {{ _export.path }}
 {% endfor %}
 all.sitename {{ xrootd_site_name }}

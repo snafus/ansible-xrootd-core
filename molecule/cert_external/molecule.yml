@@ -1,8 +1,8 @@
 ---
-# Molecule cert_external scenario — operator-supplied certificate (controller path mode)
+# Molecule cert_external scenario — operator-supplied certificate (host path mode)
 # cert_mode: external, ca_mode: file
-# prepare.yml generates a throwaway cert on the Ansible controller; paths are
-# referenced via xrootd_ext_cert_src / xrootd_ext_key_src / xrootd_ext_ca_src.
+# prepare.yml generates a throwaway cert on the controller and copies it to the
+# host; converge uses xrootd_ext_cert_host_src to exercise Sub-mode C.
 
 dependency:
   name: galaxy
@@ -31,12 +31,8 @@ provisioner:
     group_vars:
       all:
         ansible_user: root
-        xrootd_data_path: /data/xrootd
-        xrootd_cert_mode: external
-        xrootd_ca_mode: file
-        xrootd_ext_cert_src: /tmp/molecule-test.crt
-        xrootd_ext_key_src: /tmp/molecule-test.key
-        xrootd_ext_ca_src: /tmp/molecule-test.crt
+        xrootd_exports:
+          - path: /data/xrootd
         xrootd_tls_enabled: false
         xrootd_http_enabled: false
         xrootd_http_tpc_enabled: false

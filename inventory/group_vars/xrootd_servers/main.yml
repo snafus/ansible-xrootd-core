@@ -12,7 +12,8 @@
 # REQUIRED
 # ---------------------------------------------------------------------------
 
-xrootd_data_path: /data/xrootd      # filesystem path exported into the namespace
+xrootd_exports:
+  - path: /data/xrootd
 
 # ---------------------------------------------------------------------------
 # Network
@@ -76,7 +77,7 @@ xrootd_data_path: /data/xrootd      # filesystem path exported into the namespac
 # xrootd_auth_entries:
 #   - type: g                        # u=unix user, g=group, h=hostname
 #     name: /ska
-#     path: /data/xrootd
+#     path: /data/xrootd             # must be one of the paths in xrootd_exports
 #     permissions: rl                # r=read, l=list, w=write, d=delete, a=all
 
 # xrootd_macaroons_enabled: true    # Macaroon bearer token auth

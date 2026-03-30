@@ -30,7 +30,8 @@ provisioner:
     group_vars:
       all:
         ansible_user: root
-        xrootd_data_path: /data/xrootd
+        xrootd_exports:
+          - path: /data/xrootd
         xrootd_cert_mode: self_signed
         xrootd_ca_mode: grid
         xrootd_ca_bundle_provider: egi

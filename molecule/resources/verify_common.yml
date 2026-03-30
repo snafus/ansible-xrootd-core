@@ -27,7 +27,7 @@
 
 - name: Test XRootD namespace via xrdfs
   ansible.builtin.command:
-    cmd: "xrdfs localhost:1094 ls {{ xrootd_data_path }}"
+    cmd: "xrdfs localhost:1094 ls {{ xrootd_exports[0].path }}"
   register: _xrdfs
   changed_when: false
   failed_when: false
@@ -37,7 +37,7 @@
     that:
       - _xrdfs.rc == 0
     fail_msg: >
-      xrdfs ls {{ xrootd_data_path }} failed (rc={{ _xrdfs.rc }}).
+      xrdfs ls {{ xrootd_exports[0].path }} failed (rc={{ _xrdfs.rc }}).
       stderr: {{ _xrdfs.stderr | default('') }}
 
 # --- Configuration -----------------------------------------------------------
@@ -64,19 +64,19 @@
     fail_msg: "TLS certificate not found at /etc/xrootd/tls/server.crt"
 
 # --- Directories -------------------------------------------------------------
-- name: Stat data export directory
+- name: Stat first export directory
   ansible.builtin.stat:
-    path: /data/xrootd
+    path: "{{ xrootd_exports[0].path }}"
   register: _data_dir
 
-- name: Assert data directory exists and is owned by xrootd
+- name: Assert first export directory exists and is owned by xrootd
   ansible.builtin.assert:
     that:
       - _data_dir.stat.exists
       - _data_dir.stat.isdir
       - _data_dir.stat.pw_name == 'xrootd'
     fail_msg: >
-      /data/xrootd: exists={{ _data_dir.stat.exists }}
+      {{ xrootd_exports[0].path }}: exists={{ _data_dir.stat.exists }}
       owner={{ _data_dir.stat.pw_name | default('unknown') }}
 
 - name: Stat log directory

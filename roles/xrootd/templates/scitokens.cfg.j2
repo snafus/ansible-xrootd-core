@@ -25,7 +25,7 @@ audience = {{ xrootd_scitokens_audience }}
 issuer = {{ issuer.url }}
 
 # base_path: only tokens whose path scope is a sub-path of this value are
-# accepted.  Set to xrootd_data_path in most deployments.
+# accepted.  Typically one of the paths in xrootd_exports.
 base_path = {{ issuer.base_path | default('/') }}
 
 # map_subject: use the JWT 'sub' claim as the local Unix username.
