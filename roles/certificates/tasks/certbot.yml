@@ -32,14 +32,18 @@
     permanent: true
     state: enabled
     immediate: true
-  when: ansible_facts['os_family'] == 'RedHat'
+  when:
+    - common_firewall_enabled | bool
+    - ansible_facts['os_family'] == 'RedHat'
 
 - name: Allow HTTP (port 80) for ACME challenge (Ubuntu)
   community.general.ufw:
     rule: allow
     port: "80"
     proto: tcp
-  when: ansible_facts['os_family'] == 'Debian'
+  when:
+    - common_firewall_enabled | bool
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Check if certbot certificate already exists
   ansible.builtin.stat:
@@ -61,28 +65,16 @@
 
 # Symlink certbot's managed paths into the standard XRootD TLS directory.
 # certbot handles rotation under /etc/letsencrypt/live/; symlinks stay valid.
-- name: Symlink certificate to XRootD TLS directory
+- name: Symlink certbot certificate paths to XRootD TLS directory
   ansible.builtin.file:
-    src: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/fullchain.pem"
-    dest: "{{ xrootd_cert_file }}"
+    src: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/{{ item.src }}"
+    dest: "{{ item.dest }}"
     state: link
     force: true
-  notify: Restart xrootd
-
-- name: Symlink private key to XRootD TLS directory
-  ansible.builtin.file:
-    src: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/privkey.pem"
-    dest: "{{ xrootd_key_file }}"
-    state: link
-    force: true
-  notify: Restart xrootd
-
-- name: Symlink CA chain to XRootD TLS directory
-  ansible.builtin.file:
-    src: "/etc/letsencrypt/live/{{ xrootd_certbot_domain }}/chain.pem"
-    dest: "{{ xrootd_ca_file }}"
-    state: link
-    force: true
+  loop:
+    - {src: fullchain.pem, dest: "{{ xrootd_cert_file }}"}
+    - {src: privkey.pem,   dest: "{{ xrootd_key_file }}"}
+    - {src: chain.pem,     dest: "{{ xrootd_ca_file }}"}
   notify: Restart xrootd
 
 # Post-renewal hook restarts xrootd so it picks up the new certificate.

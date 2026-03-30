@@ -1,119 +1,15 @@
 ---
-# Molecule verify — grid_egi scenario
-# Standard xrootd service checks plus EGI IGTF trust anchor assertions.
+# grid ca_mode: xrootd_ca_file (/etc/xrootd/tls/ca.crt) is intentionally absent;
+# xrd.tlsca uses certdir instead.
 - name: Verify
   hosts: all
   gather_facts: true
   become: false
   tasks:
-    # --- Service ---------------------------------------------------------------
-    - name: Get xrootd@standalone service status
-      ansible.builtin.systemd:
-        name: xrootd@standalone
-      register: _xrootd_svc
+    - name: Common xrootd checks
+      ansible.builtin.include_tasks: ../resources/verify_common.yml
 
-    - name: Assert xrootd service is active
-      ansible.builtin.assert:
-        that:
-          - _xrootd_svc.status.ActiveState == 'active'
-        fail_msg: >
-          xrootd@standalone is not active.
-          State: {{ _xrootd_svc.status.ActiveState }} ({{ _xrootd_svc.status.SubState }})
-
-    # --- Network ---------------------------------------------------------------
-    - name: Assert xrootd port 1094 is listening
-      ansible.builtin.wait_for:
-        port: 1094
-        host: 127.0.0.1
-        timeout: 15
-        msg: "XRootD port 1094 is not open"
-
-    - name: Test XRootD namespace via xrdfs
-      ansible.builtin.command:
-        cmd: "xrdfs localhost:1094 ls {{ xrootd_data_path }}"
-      register: _xrdfs
-      changed_when: false
-      failed_when: false
-
-    - name: Assert xrdfs returned exit code 0
-      ansible.builtin.assert:
-        that:
-          - _xrdfs.rc == 0
-        fail_msg: >
-          xrdfs ls {{ xrootd_data_path }} failed (rc={{ _xrdfs.rc }}).
-          stderr: {{ _xrdfs.stderr | default('') }}
-
-    # --- Configuration ---------------------------------------------------------
-    - name: Assert xrootd config file is deployed
-      ansible.builtin.stat:
-        path: /etc/xrootd/xrootd-standalone.cfg
-      register: _cfg_stat
-
-    - name: Fail if config file is missing
-      ansible.builtin.assert:
-        that:
-          - _cfg_stat.stat.exists
-        fail_msg: "xrootd-standalone.cfg not found"
-
-    - name: Stat TLS certificate
-      ansible.builtin.stat:
-        path: /etc/xrootd/tls/server.crt
-      register: _cert_stat
-
-    - name: Assert TLS certificate exists
-      ansible.builtin.assert:
-        that:
-          - _cert_stat.stat.exists
-        fail_msg: "TLS certificate not found at /etc/xrootd/tls/server.crt"
-
-    # grid ca_mode uses certdir — xrootd_ca_file (/etc/xrootd/tls/ca.crt) is
-    # intentionally absent; do not assert its existence here.
-
-    # --- Directories -----------------------------------------------------------
-    - name: Stat data export directory
-      ansible.builtin.stat:
-        path: /data/xrootd
-      register: _data_dir
-
-    - name: Assert data directory exists and is owned by xrootd
-      ansible.builtin.assert:
-        that:
-          - _data_dir.stat.exists
-          - _data_dir.stat.isdir
-          - _data_dir.stat.pw_name == 'xrootd'
-        fail_msg: >
-          /data/xrootd: exists={{ _data_dir.stat.exists }}
-          owner={{ _data_dir.stat.pw_name | default('unknown') }}
-
-    - name: Stat log directory
-      ansible.builtin.stat:
-        path: /var/log/xrootd
-      register: _log_dir
-
-    - name: Assert log directory exists and is owned by xrootd
-      ansible.builtin.assert:
-        that:
-          - _log_dir.stat.exists
-          - _log_dir.stat.isdir
-          - _log_dir.stat.pw_name == 'xrootd'
-        fail_msg: >
-          /var/log/xrootd: exists={{ _log_dir.stat.exists }}
-          owner={{ _log_dir.stat.pw_name | default('unknown') }}
-
-    # --- systemd resource limits -----------------------------------------------
-    - name: Get xrootd service LimitNOFILE
-      ansible.builtin.command:
-        cmd: systemctl show xrootd@standalone --property=LimitNOFILE
-      register: _nofile
-      changed_when: false
-
-    - name: Assert LimitNOFILE is >= 1048576
-      ansible.builtin.assert:
-        that:
-          - (_nofile.stdout | regex_search('[0-9]+') | int) >= 1048576
-        fail_msg: "LimitNOFILE is too low: {{ _nofile.stdout }}"
-
-    # --- EGI IGTF trust anchors ------------------------------------------------
+    # --- EGI IGTF trust anchors ----------------------------------------------
     - name: Stat grid certificate directory
       ansible.builtin.stat:
         path: /etc/grid-security/certificates

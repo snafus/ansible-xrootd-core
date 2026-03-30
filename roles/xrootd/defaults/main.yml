@@ -135,15 +135,9 @@ xrootd_limit_nproc:  65536     # LimitNPROC  — threads / sub-processes
 xrootd_jemalloc_enabled: false
 
 # --- User / group -----------------------------------------------------------
-# Defaults here must match common/defaults/main.yml — the common role creates
-# the account first so certificates can chown files before xrootd installs.
+# xrootd_user and xrootd_group are defined in common/defaults/main.yml.
+# The common role creates the account before certificates or xrootd runs.
 # Override in group_vars to change both roles at once.
-xrootd_user:      xrootd   # service account name
-xrootd_group:     xrootd   # primary group name
-# Leave unset to let the OS pick a free system-range ID (recommended).
-# Set to a fixed value for consistent IDs across a multi-node cluster.
-# xrootd_user_uid: 988
-# xrootd_group_gid: 988
 
 # --- Package version --------------------------------------------------------
 # Pin to a specific XRootD release. Empty string installs the latest version

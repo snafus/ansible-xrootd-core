@@ -102,13 +102,17 @@
     # Auto-generate only when vault value is absent AND file does not yet exist.
     # Not suitable for multi-node deployments — use vault_macaroon_secret instead.
     # Split into generate + write so an openssl failure does not leave an empty file.
+    - name: Set macaroon auto-generate flag
+      ansible.builtin.set_fact:
+        _macaroon_auto_generate: >-
+          {{ (vault_macaroon_secret is not defined or vault_macaroon_secret | length == 0)
+             and not _macaroon_stat.stat.exists }}
+
     - name: Generate macaroon secret value
       ansible.builtin.command:
         cmd: "openssl rand -base64 64"
       register: _macaroon_generated
-      when:
-        - vault_macaroon_secret is not defined or vault_macaroon_secret | length == 0
-        - not _macaroon_stat.stat.exists
+      when: _macaroon_auto_generate | bool
       changed_when: true
       no_log: true
 
@@ -120,8 +124,7 @@
         group: "{{ xrootd_group }}"
         mode: "0640"
       when:
-        - vault_macaroon_secret is not defined or vault_macaroon_secret | length == 0
-        - not _macaroon_stat.stat.exists
+        - _macaroon_auto_generate | bool
         - _macaroon_generated is not skipped
       no_log: true
 
