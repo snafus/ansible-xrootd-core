@@ -27,7 +27,7 @@
 
 - name: Test XRootD namespace via xrdfs
   ansible.builtin.command:
-    cmd: "xrdfs localhost:1094 ls {{ xrootd_exports[0].path }}"
+    cmd: "xrdfs localhost:1094 ls {{ xrootd_health_check_path }}"
   register: _xrdfs
   changed_when: false
   failed_when: false
@@ -37,7 +37,7 @@
     that:
       - _xrdfs.rc == 0
     fail_msg: >
-      xrdfs ls {{ xrootd_exports[0].path }} failed (rc={{ _xrdfs.rc }}).
+      xrdfs ls {{ xrootd_health_check_path }} failed (rc={{ _xrdfs.rc }}).
       stderr: {{ _xrdfs.stderr | default('') }}
 
 # --- Configuration -----------------------------------------------------------
@@ -66,7 +66,7 @@
 # --- Directories -------------------------------------------------------------
 - name: Stat first export directory
   ansible.builtin.stat:
-    path: "{{ xrootd_exports[0].path }}"
+    path: "{{ xrootd_health_check_path }}"
   register: _data_dir
 
 - name: Assert first export directory exists and is owned by xrootd
@@ -76,7 +76,7 @@
       - _data_dir.stat.isdir
       - _data_dir.stat.pw_name == 'xrootd'
     fail_msg: >
-      {{ xrootd_exports[0].path }}: exists={{ _data_dir.stat.exists }}
+      {{ xrootd_health_check_path }}: exists={{ _data_dir.stat.exists }}
       owner={{ _data_dir.stat.pw_name | default('unknown') }}
 
 - name: Stat log directory

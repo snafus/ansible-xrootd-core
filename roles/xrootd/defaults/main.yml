@@ -13,7 +13,8 @@ xrootd_auth_dir:    /opt/xrd/etc         # Authfile and related config
 
 # Exported namespace paths — all entries are equal.
 # Each is created on disk (unless create: false) and emitted as an
-# 'all.export' directive. Health checks use xrootd_exports[0].path.
+# 'all.export' directive. xrootd_health_check_path defaults to the first
+# entry and is used for post-deploy validation.
 # create: false — skip mkdir for pre-existing mounts (CephFS, NFS, Lustre).
 xrootd_exports:
   - path: /data/xrootd
@@ -24,6 +25,11 @@ xrootd_exports:
 #     mode: "0755"        # optional, default 0755
 #   - path: /mnt/ceph/xrootd
 #     create: false       # pre-existing mount — do not mkdir
+
+# Path used for post-deploy validation (xrdfs ls). Defaults to the first
+# export; override if the first entry is a pre-existing mount that may not
+# exist in CI.
+xrootd_health_check_path: "{{ xrootd_exports[0].path }}"
 
 # --- Network ----------------------------------------------------------------
 xrootd_port:         1094   # XRootD protocol + HTTP port
