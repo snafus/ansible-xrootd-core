@@ -11,6 +11,27 @@
   loop: "{{ xrootd_exports }}"
   when: item.create | default(true) | bool
 
+# For mount: true entries, verify the path is a real mount point — not just a
+# plain directory. This prevents xrootd from silently exporting from an empty
+# underlying directory when a filesystem (CephFS, NFS, Lustre) is not mounted.
+- name: Check mount point status for export paths
+  ansible.builtin.command:
+    cmd: "mountpoint -q {{ item.path }}"
+  loop: "{{ xrootd_exports }}"
+  when: item.mount | default(false) | bool
+  changed_when: false
+  failed_when: false
+  register: _mount_check
+
+- name: Assert mount-flagged export paths are mounted
+  ansible.builtin.assert:
+    that: item.rc == 0
+    fail_msg: >
+      Export path {{ item.item.path }} has mount: true but is not a mount point.
+      Ensure the filesystem is mounted before running this role.
+  loop: "{{ _mount_check.results }}"
+  when: item is not skipped
+
 - name: Create admin socket directory
   ansible.builtin.file:
     path: "{{ xrootd_admin_path }}"

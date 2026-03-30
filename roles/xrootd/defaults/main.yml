@@ -15,16 +15,25 @@ xrootd_auth_dir:    /opt/xrd/etc         # Authfile and related config
 # Each is created on disk (unless create: false) and emitted as an
 # 'all.export' directive. xrootd_health_check_path defaults to the first
 # entry and is used for post-deploy validation.
-# create: false — skip mkdir for pre-existing mounts (CephFS, NFS, Lustre).
+#
+# Per-entry keys:
+#   path:         required — filesystem path to export
+#   mode:         optional — directory permissions (default: "0755")
+#   create:       optional — create the directory if absent (default: true)
+#                 set false for paths owned by an external agent (Puppet, ACME...)
+#   mount:        optional — assert the path is a real mount point (default: false)
+#                 fails the play if the filesystem is not mounted; prevents xrootd
+#                 from silently serving from an empty underlying directory
 xrootd_exports:
   - path: /data/xrootd
 # Further examples:
 # xrootd_exports:
 #   - path: /data/xrootd
 #   - path: /archive/xrootd
-#     mode: "0755"        # optional, default 0755
+#     mode: "0755"
 #   - path: /mnt/ceph/xrootd
-#     create: false       # pre-existing mount — do not mkdir
+#     create: false   # directory pre-exists; do not mkdir
+#     mount: true     # fail if CephFS is not mounted at this path
 
 # Path used for post-deploy validation (xrdfs ls). Defaults to the first
 # export; override if the first entry is a pre-existing mount that may not
