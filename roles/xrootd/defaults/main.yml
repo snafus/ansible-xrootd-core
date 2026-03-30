@@ -158,16 +158,3 @@ xrootd_jemalloc_enabled: false
 # Examples: "5.6.9"  "5.7.1"
 xrootd_version: ""
 
-# --- Package lists ----------------------------------------------------------
-# Optional feature packages are appended in install.yml based on enabled flags.
-_xrootd_base_packages_rocky:
-  - xrootd
-  - xrootd-server
-  - xrootd-client
-  - xrootd-libs
-  - python3-xrootd
-
-_xrootd_base_packages_ubuntu:
-  - xrootd-server
-  - xrootd-client
-  - python3-xrootd

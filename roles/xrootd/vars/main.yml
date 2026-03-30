@@ -1,0 +1,15 @@
+---
+# Internal variables — not intended to be overridden by operators.
+# Optional feature packages are appended to these lists in install.yml.
+
+_xrootd_base_packages_rocky:
+  - xrootd
+  - xrootd-server
+  - xrootd-client
+  - xrootd-libs
+  - python3-xrootd
+
+_xrootd_base_packages_ubuntu:
+  - xrootd-server
+  - xrootd-client
+  - python3-xrootd
