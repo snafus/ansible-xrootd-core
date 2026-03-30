@@ -118,6 +118,9 @@ xrootd_limit_nproc:  65536     # LimitNPROC  — threads / sub-processes
 xrootd_jemalloc_enabled: false
 
 # --- User / group -----------------------------------------------------------
+# Defaults here must match common/defaults/main.yml — the common role creates
+# the account first so certificates can chown files before xrootd installs.
+# Override in group_vars to change both roles at once.
 xrootd_user:      xrootd   # service account name
 xrootd_group:     xrootd   # primary group name
 # Leave unset to let the OS pick a free system-range ID (recommended).

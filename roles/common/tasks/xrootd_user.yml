@@ -1,0 +1,28 @@
+---
+# Create the xrootd service account before any other role runs.
+# Running here (in common) guarantees the account exists when the
+# certificates role chowns TLS files and when the xrootd role installs
+# packages (which may try to create the user with a different UID).
+#
+# xrootd/tasks/users.yml repeats this for idempotency and adds UID/GID
+# pinning support — keeping it there means the xrootd role remains
+# runnable on its own if common has already been applied.
+
+- name: Create xrootd group
+  ansible.builtin.group:
+    name: "{{ xrootd_group }}"
+    gid: "{{ xrootd_group_gid | default(omit) }}"
+    system: true
+    state: present
+
+- name: Create xrootd user
+  ansible.builtin.user:
+    name: "{{ xrootd_user }}"
+    uid: "{{ xrootd_user_uid | default(omit) }}"
+    group: "{{ xrootd_group }}"
+    shell: /sbin/nologin
+    home: /var/spool/xrootd
+    create_home: false
+    system: true
+    comment: XRootD daemon
+    state: present

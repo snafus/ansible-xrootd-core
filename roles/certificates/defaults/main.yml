@@ -6,12 +6,6 @@
 #   external           : deploy a cert supplied by the operator
 xrootd_cert_mode: self_signed
 
-# --- Service account --------------------------------------------------------
-# Must match xrootd role values — certificates role runs before xrootd role
-# so it cannot rely on xrootd/defaults/main.yml being loaded.
-xrootd_user:  xrootd
-xrootd_group: xrootd
-
 # --- CA trust mode ----------------------------------------------------------
 # Controls how xrd.tlsca is configured (must match xrootd role value):
 #   file   — use xrootd_ca_file (default; correct for self-signed and external modes)

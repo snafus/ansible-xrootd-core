@@ -2,3 +2,14 @@
 # Set to true to run a full system update (dnf update / apt dist-upgrade).
 # Off by default — running updates in production should be an explicit choice.
 common_update_system: false
+
+# --- xrootd service account -------------------------------------------------
+# Defined here so the account exists before the certificates role runs.
+# The xrootd role repeats these defaults (same values) so it remains
+# runnable standalone; override in group_vars to change both at once.
+xrootd_user:  xrootd
+xrootd_group: xrootd
+# Leave unset to let the OS pick a free system-range ID (recommended).
+# Set to a fixed value for consistent UIDs across a multi-node cluster.
+# xrootd_user_uid: 988
+# xrootd_group_gid: 988

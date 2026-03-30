@@ -6,28 +6,6 @@
 #   {{ xrootd_key_file }}   — private key (PEM, mode 0600, owner {{ xrootd_user }})
 #   {{ xrootd_ca_file }}    — CA bundle (PEM)  [not required for grid ca_mode]
 
-# Ensure the service account exists before writing any files owned by it.
-# This role may run before the xrootd role (which installs the package and
-# would otherwise create the user), so it must be self-sufficient here.
-# UID/GID are left to the OS; the xrootd role can pin them via
-# xrootd_user_uid / xrootd_group_gid if predictable IDs are required.
-- name: Ensure xrootd group exists
-  ansible.builtin.group:
-    name: "{{ xrootd_group }}"
-    system: true
-    state: present
-
-- name: Ensure xrootd user exists
-  ansible.builtin.user:
-    name: "{{ xrootd_user }}"
-    group: "{{ xrootd_group }}"
-    shell: /sbin/nologin
-    home: /var/spool/xrootd
-    create_home: false
-    system: true
-    comment: XRootD daemon
-    state: present
-
 # Reject the combination before doing any work.
 - name: Assert self_signed cert mode is not combined with system ca_mode
   ansible.builtin.assert:

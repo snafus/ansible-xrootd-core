@@ -30,3 +30,6 @@
 
 - name: Configure time synchronisation
   ansible.builtin.include_tasks: chrony.yml
+
+- name: Create xrootd service account
+  ansible.builtin.include_tasks: xrootd_user.yml
