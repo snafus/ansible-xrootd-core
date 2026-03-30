@@ -175,4 +175,3 @@ xrootd_jemalloc_enabled: false
 # available from the configured repository (EPEL or CERN repo).
 # Examples: "5.6.9"  "5.7.1"
 xrootd_version: ""
-

@@ -73,8 +73,8 @@
     force: true
   loop:
     - {src: fullchain.pem, dest: "{{ xrootd_cert_file }}"}
-    - {src: privkey.pem,   dest: "{{ xrootd_key_file }}"}
-    - {src: chain.pem,     dest: "{{ xrootd_ca_file }}"}
+    - {src: privkey.pem, dest: "{{ xrootd_key_file }}"}
+    - {src: chain.pem, dest: "{{ xrootd_ca_file }}"}
   notify: Restart xrootd
 
 # Post-renewal hook restarts xrootd so it picks up the new certificate.

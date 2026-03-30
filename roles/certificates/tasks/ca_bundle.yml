@@ -95,11 +95,19 @@
     # --- EGI IGTF trust anchors (Ubuntu) ----------------------------------------
     # Follows the official installation instructions exactly:
     # https://docs.egi.eu/providers/operations-manuals/howto01_using_igtf_ca_distribution/
-    - name: Install EGI trust anchors GPG key (Ubuntu)
-      ansible.builtin.shell:
-        cmd: >
-          wget -q -O - https://repository.egi.eu/sw/production/cas/1/current/GPG-KEY-EUGridPMA-RPM-4
-          | gpg --dearmor -o /etc/apt/keyrings/GPG-KEY-EUGridPMA-RPM-4.gpg
+    - name: Download EGI trust anchors GPG key (Ubuntu)
+      ansible.builtin.get_url:
+        url: https://repository.egi.eu/sw/production/cas/1/current/GPG-KEY-EUGridPMA-RPM-4
+        dest: /tmp/GPG-KEY-EUGridPMA-RPM-4.asc
+        mode: "0644"
+        force: false
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'Debian'
+
+    - name: Dearmor EGI trust anchors GPG key (Ubuntu)
+      ansible.builtin.command:
+        cmd: gpg --dearmor -o /etc/apt/keyrings/GPG-KEY-EUGridPMA-RPM-4.gpg /tmp/GPG-KEY-EUGridPMA-RPM-4.asc
         creates: /etc/apt/keyrings/GPG-KEY-EUGridPMA-RPM-4.gpg
       when:
         - xrootd_ca_bundle_provider == 'egi'
