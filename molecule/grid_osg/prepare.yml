@@ -1,20 +1,8 @@
 ---
-# Molecule prepare — install xrootd packages before converge (Rocky only).
 - name: Prepare
   hosts: all
   gather_facts: true
   become: false
   tasks:
-    - name: Install EPEL repository
-      ansible.builtin.dnf:
-        name: epel-release
-        state: present
-
-    - name: Install xrootd from EPEL
-      ansible.builtin.dnf:
-        name:
-          - xrootd
-          - xrootd-server
-          - xrootd-client
-        state: present
-        enablerepo: epel
+    - name: Install xrootd packages
+      ansible.builtin.include_tasks: ../resources/prepare_packages.yml

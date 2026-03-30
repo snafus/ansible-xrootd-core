@@ -1,0 +1,30 @@
+---
+# Shared package installation tasks — included by all Molecule prepare playbooks.
+# Installs xrootd from EPEL (Rocky) or Ubuntu universe before converge runs.
+# In CI the CERN XRootD repo may be unreachable; pre-installing from the
+# distribution repo ensures the xrootd role can configure and start the service.
+
+- name: Install EPEL repository (Rocky)
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install xrootd from EPEL (Rocky)
+  ansible.builtin.dnf:
+    name:
+      - xrootd
+      - xrootd-server
+      - xrootd-client
+    state: present
+    enablerepo: epel
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install xrootd from Ubuntu universe
+  ansible.builtin.apt:
+    name:
+      - xrootd-server
+      - xrootd-client
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == 'Debian'
