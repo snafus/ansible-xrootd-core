@@ -5,6 +5,13 @@
 all.export {{ xrootd_data_path }}
 all.sitename {{ xrootd_site_name }}
 
+# --- Checksum ---------------------------------------------------------------
+{% if xrootd_chksum_enabled %}
+# adler32 is the WLCG standard for FTS3 transfer verification and Rucio
+# replica consistency checks.
+xrootd.chksum max:{{ xrootd_chksum_max }} {{ xrootd_chksum_type }}
+{% endif %}
+
 # --- Network ----------------------------------------------------------------
 xrd.port {{ xrootd_port }}
 {% if xrootd_bind_address %}
@@ -21,6 +28,14 @@ xrd.tlsca certdir {{ xrootd_ca_dir }}
 {% else %}
 xrd.tlsca certfile {{ xrootd_ca_file }}
 {% endif %}
+{% endif %}
+
+# --- Third Party Copy -------------------------------------------------------
+{% if xrootd_tpc_enabled %}
+# Native XRootD TPC — required for FTS3 XRootD-to-XRootD server-to-server
+# transfers (lower overhead than HTTP TPC).  authrz enforces token/cert
+# authorisation on the TPC pull request (WLCG JWT Profile requirement).
+xrootd.tpc authrz
 {% endif %}
 
 # --- HTTP / WebDAV ----------------------------------------------------------

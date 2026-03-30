@@ -1,29 +1,45 @@
 # SciTokens configuration for XRootD.
 # Managed by Ansible — do not edit manually.
 #
-# Each [Issuer <name>] block configures a trusted token issuer.
-# The 'iss' claim in the JWT must match the issuer URL exactly.
+# Token requirements (WLCG JWT Profile v1.0):
+#   - 'iss' claim must match an [Issuer] block below
+#   - 'aud' claim must match the audience value (or include wlcg.cern.ch/jwt/v1/any)
+#   - 'scope' must include storage.read, storage.modify, storage.create, or
+#     storage.stage as appropriate for the requested operation
+#   - 'sub' claim is used for user mapping when map_subject = true
+#   - 'wlcg.groups' claim is passed through to the authz layer (Authfile/ACC)
 
 [Global]
-# passthrough: requests with no token proceed to the next auth layer
-# deny: requests with no token are rejected immediately
-onmissing = passthrough
+# onmissing = passthrough: requests with no token fall through to the next
+#   auth layer (X.509, Macaroon, Authfile).  Use 'deny' to require a token.
+onmissing = {{ xrootd_scitokens_onmissing }}
 
-# Audience claim the token must contain (matches 'aud' in the JWT)
+# audience: must match the 'aud' claim in the JWT.
+#   Production sites should use their own endpoint URL, not the any-audience
+#   sentinel, to prevent token reuse across services.
 audience = {{ xrootd_scitokens_audience }}
 
 {% for issuer in xrootd_scitokens_issuers %}
 [Issuer {{ issuer.name }}]
-# Issuer URL — must match the 'iss' claim in presented JWTs
+# Issuer URL — must match the 'iss' claim exactly (trailing slash matters)
 issuer = {{ issuer.url }}
 
-# Only tokens with paths under base_path are accepted from this issuer
+# base_path: only tokens whose path scope is a sub-path of this value are
+# accepted.  Set to xrootd_data_path in most deployments.
 base_path = {{ issuer.base_path | default('/') }}
 
-# Whether to use the token 'sub' claim for local Unix user mapping
+# map_subject: use the JWT 'sub' claim as the local Unix username.
+# Requires a consistent sub claim from the issuer (e.g. INDIGO IAM UUID).
 map_subject = {{ issuer.map_subject | default('false') | string | lower }}
 
-# Local Unix user to run file operations as for this issuer's tokens
+# default_user: Unix user for file operations when map_subject is false
+# or the sub claim has no local mapping.
 default_user = {{ issuer.default_user | default('xrootd') }}
+{% if issuer.name_mapfile is defined and issuer.name_mapfile %}
+
+# name_mapfile: maps JWT 'sub' values to local Unix usernames, one per line:
+#   <sub-value> <unix-username>
+name_mapfile = {{ issuer.name_mapfile }}
+{% endif %}
 
 {% endfor %}

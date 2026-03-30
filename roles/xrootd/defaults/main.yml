@@ -38,11 +38,20 @@ xrootd_ca_dir:  /etc/grid-security/certificates
 
 # --- Features (all opt-in — explicitly enable what you need) ----------------
 xrootd_http_enabled:       false   # HTTP/WebDAV protocol (requires xrootd-server with HTTP plugin)
-xrootd_http_tpc_enabled:   false   # Third Party Copy (requires HTTP enabled)
+xrootd_http_tpc_enabled:   false   # HTTP Third Party Copy via libXrdHttpTPC.so (requires HTTP enabled)
+xrootd_tpc_enabled:        false   # Native XRootD TPC (xrootd.tpc authrz); required for FTS3 XRootD-to-XRootD transfers
 xrootd_auth_enabled:       false   # Authfile-based access control
 xrootd_scitokens_enabled:  false   # SciTokens / WLCG JWT token auth
 xrootd_macaroons_enabled:  false   # Macaroon bearer token auth
 xrootd_monitoring_enabled: false   # UDP monitoring export
+
+# --- Checksum ---------------------------------------------------------------
+# adler32 is the WLCG standard; required for FTS3 transfer verification and
+# Rucio replica catalogue consistency checks.  Disable only on nodes where
+# checksum calculation overhead is unacceptable (benchmark first).
+xrootd_chksum_enabled: true
+xrootd_chksum_type:    adler32   # adler32 (WLCG), md5, crc32, sha2
+xrootd_chksum_max:     4         # max concurrent checksum calculations
 
 # --- Macaroon secret --------------------------------------------------------
 # If vault_macaroon_secret is set: that value is written to the file (required
@@ -52,13 +61,21 @@ xrootd_monitoring_enabled: false   # UDP monitoring export
 xrootd_macaroon_secret_file: /etc/xrootd/macaroon-secret
 
 # --- SciTokens --------------------------------------------------------------
+# audience: must match the 'aud' claim in presented JWTs.
+#   WLCG-standard any-audience: "https://wlcg.cern.ch/jwt/v1/any"
+#   Site-specific (recommended for production): "https://xrootd.example.org/"
+# onmissing: passthrough = fall through to next auth layer when no token is
+#   presented (allows X.509/macaroon alongside tokens); deny = token required.
 xrootd_scitokens_audience: "https://wlcg.cern.ch/jwt/v1/any"
+xrootd_scitokens_onmissing: passthrough
 xrootd_scitokens_issuers: []
 # Example issuer entry:
 # - name:         my-iam
 #   url:          https://iam.example.org/
-#   base_path:    /
-#   default_user: xrootd
+#   base_path:    /data/xrootd        # tokens must carry a sub-path of this
+#   default_user: xrootd              # Unix user for file operations
+#   map_subject:  false               # true = use JWT 'sub' claim as Unix username
+#   name_mapfile: ""                  # path to a sub→username map file (optional)
 
 # --- Authfile entries -------------------------------------------------------
 xrootd_auth_entries: []
