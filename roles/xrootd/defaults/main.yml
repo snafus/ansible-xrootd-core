@@ -7,10 +7,20 @@
 xrootd_config_name: standalone
 
 # --- Paths ------------------------------------------------------------------
-xrootd_data_path:   /data/xrootd         # exported namespace root
+xrootd_data_path:   /data/xrootd         # primary exported namespace root (used for health checks)
 xrootd_admin_path:  /var/spool/xrootd    # admin socket directory
 xrootd_log_path:    /var/log/xrootd      # log files
 xrootd_auth_dir:    /opt/xrd/etc         # Authfile and related config
+
+# Additional export paths — each entry is created on disk and added to the
+# XRootD config as an extra 'all.export' directive.
+# xrootd_data_path is always exported as the primary path; list extras here.
+xrootd_extra_exports: []
+# Example:
+# xrootd_extra_exports:
+#   - path: /archive/xrootd
+#     mode: "0755"        # optional, default 0755
+#     create: true        # optional, default true — set false for pre-existing mounts
 
 # --- Network ----------------------------------------------------------------
 xrootd_port:         1094   # XRootD protocol + HTTP port

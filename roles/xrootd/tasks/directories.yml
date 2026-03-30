@@ -1,13 +1,23 @@
 ---
 # Create all directories required by XRootD.
 
-- name: Create data export directory
+- name: Create primary data export directory
   ansible.builtin.file:
     path: "{{ xrootd_data_path }}"
     state: directory
     owner: "{{ xrootd_user }}"
     group: "{{ xrootd_group }}"
     mode: "0755"
+
+- name: Create extra export directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
+    mode: "{{ item.mode | default('0755') }}"
+  loop: "{{ xrootd_extra_exports }}"
+  when: item.create | default(true) | bool
 
 - name: Create admin socket directory
   ansible.builtin.file:
