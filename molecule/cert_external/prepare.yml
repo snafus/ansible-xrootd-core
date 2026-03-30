@@ -1,9 +1,10 @@
 ---
 # Step 1: generate a throwaway cert on the Ansible controller.
-# Step 2: install xrootd packages on the target host.
+# Step 2: install xrootd packages and place cert files on the target host.
 #
-# The cert is self-signed and used as both the server cert and CA bundle,
-# which is valid for the external cert mode test (ca_mode: file).
+# The cert is self-signed and used as both the server cert and CA bundle.
+# Files are placed at /tmp/molecule-host-*.{crt,key} on the target so that
+# the host-path sub-mode (xrootd_ext_cert_host_src) can be exercised in CI.
 
 - name: Generate throwaway test certificate (Ansible controller)
   hosts: localhost
@@ -47,3 +48,15 @@
         state: present
         update_cache: true
       when: ansible_facts['os_family'] == 'Debian'
+
+    - name: Place test certificate on host (Sub-mode C staging path)
+      ansible.builtin.copy:
+        src: /tmp/molecule-test.crt
+        dest: /tmp/molecule-host-cert.crt
+        mode: "0644"
+
+    - name: Place test private key on host (Sub-mode C staging path)
+      ansible.builtin.copy:
+        src: /tmp/molecule-test.key
+        dest: /tmp/molecule-host-cert.key
+        mode: "0600"

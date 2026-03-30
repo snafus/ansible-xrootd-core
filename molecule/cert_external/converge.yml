@@ -2,6 +2,13 @@
 - name: Converge
   hosts: all
   become: true
+  vars:
+    # Sub-mode C: files pre-placed on the host by prepare.yml
+    xrootd_cert_mode: external
+    xrootd_ext_cert_host_src: /tmp/molecule-host-cert.crt
+    xrootd_ext_key_host_src:  /tmp/molecule-host-cert.key
+    xrootd_ext_ca_host_src:   /tmp/molecule-host-cert.crt   # self-signed; cert == CA
+    common_firewall_enabled: false
   roles:
     - role: common
     - role: certificates
