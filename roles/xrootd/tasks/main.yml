@@ -17,6 +17,7 @@
 
 - name: Open firewall ports
   ansible.builtin.include_tasks: firewall.yml
+  when: common_firewall_enabled | bool
   tags: [configure, firewall]
 
 - name: Deploy XRootD configuration

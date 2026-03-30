@@ -22,11 +22,15 @@
 
 - name: Set up firewall service (Rocky)
   ansible.builtin.include_tasks: firewall_rocky.yml
-  when: ansible_facts['os_family'] == 'RedHat'
+  when:
+    - common_firewall_enabled | bool
+    - ansible_facts['os_family'] == 'RedHat'
 
 - name: Set up firewall service (Ubuntu)
   ansible.builtin.include_tasks: firewall_ubuntu.yml
-  when: ansible_facts['os_family'] == 'Debian'
+  when:
+    - common_firewall_enabled | bool
+    - ansible_facts['os_family'] == 'Debian'
 
 - name: Configure time synchronisation
   ansible.builtin.include_tasks: chrony.yml

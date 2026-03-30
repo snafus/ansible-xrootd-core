@@ -3,6 +3,12 @@
 # Off by default — running updates in production should be an explicit choice.
 common_update_system: false
 
+# Manage the host firewall (firewalld on Rocky, ufw on Ubuntu).
+# Set to false when the firewall is managed externally (e.g. cloud security
+# groups, Puppet, or a dedicated network team) to skip service install,
+# enable, and all port-open tasks in both common and xrootd roles.
+common_firewall_enabled: true
+
 # --- xrootd service account -------------------------------------------------
 # Defined here so the account exists before the certificates role runs.
 # The xrootd role repeats these defaults (same values) so it remains
