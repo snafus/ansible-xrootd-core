@@ -47,9 +47,9 @@ xrootd_monitoring_enabled: false   # UDP monitoring export
 
 # --- Checksum ---------------------------------------------------------------
 # adler32 is the WLCG standard; required for FTS3 transfer verification and
-# Rucio replica catalogue consistency checks.  Disable only on nodes where
-# checksum calculation overhead is unacceptable (benchmark first).
-xrootd_chksum_enabled: true
+# Rucio replica catalogue consistency checks.
+# Enable when using FTS3 or Rucio — benchmark first on high-throughput nodes.
+xrootd_chksum_enabled: false
 xrootd_chksum_type:    adler32   # adler32 (WLCG), md5, crc32, sha2
 xrootd_chksum_max:     4         # max concurrent checksum calculations
 
