@@ -31,13 +31,16 @@ xrootd_bind_address: ""     # empty = bind all interfaces
 
 # --- TLS --------------------------------------------------------------------
 # Populated by the certificates role. Override only if managing certs manually.
+# xrootd_cert_dir must match certificates role's value so all three derived
+# paths stay in sync when the directory is changed in one place.
 xrootd_tls_enabled: true
-xrootd_cert_file:   /etc/xrootd/tls/server.crt
-xrootd_key_file:    /etc/xrootd/tls/server.key
+xrootd_cert_dir:  /etc/xrootd/tls
+xrootd_cert_file: "{{ xrootd_cert_dir }}/server.crt"
+xrootd_key_file:  "{{ xrootd_cert_dir }}/server.key"
 # CA bundle PEM file — used by xrd.tlsca certfile (file and system modes).
 # For self-signed mode: the certificates role writes the server cert here.
 # For system mode: symlinked to the OS CA bundle by the certificates role.
-xrootd_ca_file:     /etc/xrootd/tls/ca.crt
+xrootd_ca_file:   "{{ xrootd_cert_dir }}/ca.crt"
 
 # CA verification mode for xrd.tlsca — must match certificates role value:
 #   file   — certfile {{ xrootd_ca_file }} (default)
