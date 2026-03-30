@@ -93,30 +93,33 @@
         - ansible_facts['os_family'] == 'RedHat'
 
     # --- EGI IGTF trust anchors (Ubuntu) ----------------------------------------
-    - name: Download EGI trust anchors GPG key (Ubuntu)
-      ansible.builtin.get_url:
-        url: https://repository.egi.eu/sw/production/cas/1/current/GPG-KEY-EUGridPMA-RPM-4
-        dest: /tmp/egi-trustanchors-gpg.asc
+    # Follows the official installation instructions exactly:
+    # https://docs.egi.eu/providers/operations-manuals/howto01_using_igtf_ca_distribution/
+    - name: Install EGI trust anchors GPG key (Ubuntu)
+      ansible.builtin.shell:
+        cmd: >
+          wget -q -O - https://repository.egi.eu/sw/production/cas/1/current/GPG-KEY-EUGridPMA-RPM-4
+          | gpg --dearmor -o /etc/apt/keyrings/GPG-KEY-EUGridPMA-RPM-4.gpg
+        creates: /etc/apt/keyrings/GPG-KEY-EUGridPMA-RPM-4.gpg
+      when:
+        - xrootd_ca_bundle_provider == 'egi'
+        - ansible_facts['os_family'] == 'Debian'
+
+    - name: Add EGI trust anchors apt source (Ubuntu)
+      ansible.builtin.copy:
+        dest: /etc/apt/sources.list.d/egi-trustanchors.list
+        owner: root
+        group: root
         mode: "0644"
+        content: |
+          #### EGI Trust Anchor Distribution ####
+          deb [signed-by=/etc/apt/keyrings/GPG-KEY-EUGridPMA-RPM-4.gpg] http://repository.egi.eu/sw/production/cas/1/current egi-igtf core
       when:
         - xrootd_ca_bundle_provider == 'egi'
         - ansible_facts['os_family'] == 'Debian'
 
-    - name: Dearmor EGI trust anchors GPG key (Ubuntu)
-      ansible.builtin.command:
-        cmd: gpg --dearmor -o /etc/apt/keyrings/egi-trustanchors.gpg /tmp/egi-trustanchors-gpg.asc
-        creates: /etc/apt/keyrings/egi-trustanchors.gpg
-      when:
-        - xrootd_ca_bundle_provider == 'egi'
-        - ansible_facts['os_family'] == 'Debian'
-
-    - name: Add EGI trust anchors apt repository (Ubuntu)
-      ansible.builtin.apt_repository:
-        repo: >-
-          deb [signed-by=/etc/apt/keyrings/egi-trustanchors.gpg]
-          https://repository.egi.eu/sw/production/cas/1/current/ egi-igtf core
-        filename: egi-trustanchors
-        state: present
+    - name: Update apt cache (Ubuntu)
+      ansible.builtin.apt:
         update_cache: true
       when:
         - xrootd_ca_bundle_provider == 'egi'

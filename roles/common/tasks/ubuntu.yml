@@ -13,6 +13,19 @@
       Supported: 22.04 (jammy), 24.04 (noble).
       Got: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }} ({{ ansible_facts['distribution_release'] }})
 
+# Remove known legacy EGI apt source and key files before the first apt cache
+# update.  These are left behind by manual installs or prior tool runs and
+# cause apt to refuse to read its source list when the same repository URL
+# appears in two files with different Signed-By values.
+- name: Remove legacy EGI apt source and key files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/eu-grid-pma.sources
+    - /etc/apt/sources.list.d/eu-grid-pma.list
+    - /etc/apt/keyrings/eu-grid-pma.asc
+
 - name: Install apt prerequisites
   ansible.builtin.apt:
     name:
