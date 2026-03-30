@@ -1,32 +1,43 @@
 ---
 # Deploy a certificate supplied by the operator.
 #
-# Two sub-modes (evaluated in order):
+# Three sub-modes (evaluated in priority order):
 #
-#   Vault content mode (preferred):
-#     Set vault_xrootd_ext_cert and vault_xrootd_ext_key in vault.yml.
-#     The private key is written directly to the target and never exists as a
-#     plaintext file on the Ansible controller.
+#   A — Vault content (preferred):
+#       Set vault_xrootd_ext_cert and vault_xrootd_ext_key in vault.yml.
+#       The private key is written directly to the target and never exists as a
+#       plaintext file on the Ansible controller.
 #
-#   Controller path mode:
-#     Set xrootd_ext_cert_src and xrootd_ext_key_src to file paths on the
-#     Ansible controller. Useful when certs are already managed externally.
+#   B — Controller path:
+#       Set xrootd_ext_cert_src and xrootd_ext_key_src to file paths on the
+#       Ansible controller. Useful when certs are already managed externally.
+#
+#   C — Host path:
+#       Set xrootd_ext_cert_host_src and xrootd_ext_key_host_src to paths
+#       already present on the target host (e.g. written by Puppet, ACME client,
+#       or site PKI). The role copies them into the standard TLS directory and
+#       enforces ownership and permissions.
 
 - name: Determine external cert sub-mode
   ansible.builtin.set_fact:
     _ext_use_vault: >-
       {{ (vault_xrootd_ext_cert is defined and vault_xrootd_ext_cert | length > 0) and
          (vault_xrootd_ext_key  is defined and vault_xrootd_ext_key  | length > 0) }}
+    _ext_use_host: >-
+      {{ xrootd_ext_cert_host_src | length > 0 and
+         xrootd_ext_key_host_src  | length > 0 }}
 
 - name: Assert that a cert source is configured
   ansible.builtin.assert:
     that:
       - _ext_use_vault | bool or
-        (xrootd_ext_cert_src | length > 0 and xrootd_ext_key_src | length > 0)
+        (xrootd_ext_cert_src | length > 0 and xrootd_ext_key_src | length > 0) or
+        _ext_use_host | bool
     fail_msg: >
-      External cert mode requires either:
-        vault_xrootd_ext_cert + vault_xrootd_ext_key  (vault content — recommended), or
-        xrootd_ext_cert_src   + xrootd_ext_key_src    (controller path).
+      External cert mode requires one of:
+        vault_xrootd_ext_cert + vault_xrootd_ext_key       (vault content — recommended), or
+        xrootd_ext_cert_src   + xrootd_ext_key_src         (controller path), or
+        xrootd_ext_cert_host_src + xrootd_ext_key_host_src (host path).
 
 # --- Vault content mode ----------------------------------------------------- #
 
@@ -74,7 +85,9 @@
     owner: "{{ xrootd_user }}"
     group: "{{ xrootd_group }}"
     mode: "0644"
-  when: not _ext_use_vault | bool
+  when:
+    - not _ext_use_vault | bool
+    - not _ext_use_host | bool
   notify: Restart xrootd
 
 - name: Deploy private key from controller path
@@ -84,7 +97,9 @@
     owner: "{{ xrootd_user }}"
     group: "{{ xrootd_group }}"
     mode: "0600"
-  when: not _ext_use_vault | bool
+  when:
+    - not _ext_use_vault | bool
+    - not _ext_use_host | bool
   no_log: true
   notify: Restart xrootd
 
@@ -97,4 +112,42 @@
     mode: "0644"
   when:
     - not _ext_use_vault | bool
+    - not _ext_use_host | bool
     - xrootd_ext_ca_src | length > 0
+
+# --- Host path mode --------------------------------------------------------- #
+
+- name: Copy certificate from host path
+  ansible.builtin.copy:
+    src: "{{ xrootd_ext_cert_host_src }}"
+    dest: "{{ xrootd_cert_file }}"
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
+    mode: "0644"
+    remote_src: true
+  when: _ext_use_host | bool
+  notify: Restart xrootd
+
+- name: Copy private key from host path
+  ansible.builtin.copy:
+    src: "{{ xrootd_ext_key_host_src }}"
+    dest: "{{ xrootd_key_file }}"
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
+    mode: "0600"
+    remote_src: true
+  when: _ext_use_host | bool
+  no_log: true
+  notify: Restart xrootd
+
+- name: Copy CA bundle from host path (optional)
+  ansible.builtin.copy:
+    src: "{{ xrootd_ext_ca_host_src }}"
+    dest: "{{ xrootd_ca_file }}"
+    owner: "{{ xrootd_user }}"
+    group: "{{ xrootd_group }}"
+    mode: "0644"
+    remote_src: true
+  when:
+    - _ext_use_host | bool
+    - xrootd_ext_ca_host_src | length > 0

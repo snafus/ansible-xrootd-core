@@ -40,10 +40,21 @@ xrootd_certbot_email:  "{{ vault_certbot_email | default('') }}"
 xrootd_certbot_domain: "{{ ansible_facts['fqdn'] }}"
 
 # --- External cert options --------------------------------------------------
-# Sub-mode A — file paths on the Ansible controller (copy src=):
+# Three sub-modes are evaluated in priority order:
+#
+# Sub-mode A — PEM content from vault (preferred; key never plaintext on disk):
+#   Set vault_xrootd_ext_cert, vault_xrootd_ext_key (+ optionally
+#   vault_xrootd_ext_ca) in vault.yml.
+#
+# Sub-mode B — file paths on the Ansible controller:
 xrootd_ext_cert_src: ""
 xrootd_ext_key_src:  ""
 xrootd_ext_ca_src:   ""   # optional CA bundle
-
-# Sub-mode B — PEM content from vault (preferred — key never plaintext on disk):
-#   vault_xrootd_ext_cert, vault_xrootd_ext_key, vault_xrootd_ext_ca
+#
+# Sub-mode C — files already present on the target host:
+#   The role copies them to the standard TLS directory and enforces ownership
+#   and permissions.  Use when certificates are managed by an external agent
+#   (e.g. Puppet, ACME client, site PKI) that writes to a known host path.
+xrootd_ext_cert_host_src: ""
+xrootd_ext_key_host_src:  ""
+xrootd_ext_ca_host_src:   ""   # optional CA bundle
