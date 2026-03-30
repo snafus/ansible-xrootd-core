@@ -71,12 +71,17 @@ Brings a bare OS to a known baseline before any application work.
 
 ```yaml
 common_update_system: false     # opt-in: run dist-upgrade / dnf update
+common_firewall_enabled: true   # set false to skip firewall install and all port rules
+                                # (use when firewall is managed by cloud security groups
+                                # or an external tool such as Puppet/Salt)
 ```
 
 **Notes:**
 - SELinux and AppArmor are explicitly out of scope for phase 1.
 - System update (`dist-upgrade` / `dnf update`) is opt-in via tag `update` and
   `common_update_system: true` — never runs by default.
+- `common_firewall_enabled: false` suppresses both the firewall service setup in
+  `common` and all port-open tasks in the `xrootd` and `certificates` roles.
 - Rocky 8 and Rocky 9 use different EPEL and CERN repo URLs; role detects via
   `ansible_distribution_major_version`.
 - Ubuntu repo codename is derived from `ansible_distribution_release`
@@ -104,7 +109,7 @@ obtained. All downstream roles (xrootd) consume the same output paths.
 | `main.yml` | Create cert dir, branch to mode sub-task, post-condition assertions |
 | `self_signed.yml` | Generate key + self-signed cert with SANs; skip if cert still valid (7-day window) |
 | `certbot.yml` | Install certbot, obtain cert, symlink to cert dir, install renewal timer |
-| `external.yml` | Deploy cert from controller path or vault PEM content |
+| `external.yml` | Deploy cert from vault content, controller path, or host path (three sub-modes) |
 
 **Certificate modes** — set via `xrootd_cert_mode`:
 
@@ -113,7 +118,12 @@ obtained. All downstream roles (xrootd) consume the same output paths.
 | Self-signed | `self_signed` | openssl with SAN (DNS + IP); renews when < 7 days remaining |
 | Certbot staging | `certbot_staging` | Let's Encrypt staging ACME; for testing |
 | Certbot production | `certbot_production` | Let's Encrypt production ACME |
-| External | `external` | Controller-supplied cert (path or vault PEM content) |
+| External | `external` | Operator-supplied cert — three sub-modes (see below) |
+
+External sub-modes (priority order):
+- **A — Vault content** (`vault_xrootd_ext_cert` + `vault_xrootd_ext_key`): preferred; key never plaintext on disk.
+- **B — Controller path** (`xrootd_ext_cert_src` + `xrootd_ext_key_src`): files on the Ansible controller.
+- **C — Host path** (`xrootd_ext_cert_host_src` + `xrootd_ext_key_host_src`): files already on the target, written by Puppet / ACME / site PKI; copied to the standard TLS directory with correct ownership.
 
 **Key defaults:**
 
@@ -130,12 +140,18 @@ xrootd_cert_country:  "UK"
 xrootd_certbot_email:  ""                     # required for certbot modes; use vault
 xrootd_certbot_domain: "{{ ansible_fqdn }}"
 
-# External — choose one sub-mode:
-xrootd_ext_cert_src:  ""                      # path on Ansible controller
-xrootd_ext_key_src:   ""                      # path on Ansible controller
-xrootd_ext_ca_src:    ""                      # optional CA path
-# OR use vault content vars (preferred — key never plaintext on disk):
+# External sub-mode A (vault — preferred):
 # vault_xrootd_ext_cert, vault_xrootd_ext_key, vault_xrootd_ext_ca
+
+# External sub-mode B (controller path):
+xrootd_ext_cert_src:  ""
+xrootd_ext_key_src:   ""
+xrootd_ext_ca_src:    ""
+
+# External sub-mode C (host path):
+xrootd_ext_cert_host_src: ""
+xrootd_ext_key_host_src:  ""
+xrootd_ext_ca_host_src:   ""
 ```
 
 **Notes:**
@@ -157,7 +173,7 @@ Installs, configures, and runs the XRootD server daemon.
 |------|---------|
 | `main.yml` | Ordered include of all sub-tasks with tags |
 | `install.yml` | Build package list (base + optional), install, verify version |
-| `directories.yml` | Create data, admin, run, log, auth directories with correct ownership |
+| `directories.yml` | Create export dirs (per xrootd_exports), assert mount points, admin/log/auth dirs |
 | `firewall.yml` | Open xrootd ports in firewalld/ufw (dispatches to OS sub-tasks) |
 | `configure.yml` | Deploy xrootd config template, robots.txt, macaroon secret, scitokens.cfg |
 | `auth.yml` | Deploy Authfile if auth enabled |
@@ -170,8 +186,16 @@ Installs, configures, and runs the XRootD server daemon.
 # Config profile — drives template selection and systemd unit name
 xrootd_config_name: standalone      # standalone | server | redirector
 
-# Paths
-xrootd_data_path:   /data/xrootd
+# Export paths — all entries are equal; each is created and exported
+xrootd_exports:
+  - path: /data/xrootd
+# Per-entry keys: path (required), mode (default 0755), create (default true),
+# mount (default false — assert path is a real mount point when true)
+
+# Health check path for post-deploy validation (xrdfs ls)
+xrootd_health_check_path: "{{ xrootd_exports[0].path }}"
+
+# Fixed paths
 xrootd_admin_path:  /var/spool/xrootd
 xrootd_log_path:    /var/log/xrootd
 xrootd_auth_dir:    /opt/xrd/etc
@@ -180,21 +204,24 @@ xrootd_auth_dir:    /opt/xrd/etc
 xrootd_port:         1094
 xrootd_bind_address: ""             # empty = all interfaces
 
-# TLS
+# TLS — paths derived from xrootd_cert_dir; change the dir to move all three
 xrootd_tls_enabled: true
-xrootd_cert_file:   /etc/xrootd/tls/server.crt
-xrootd_key_file:    /etc/xrootd/tls/server.key
-xrootd_ca_file:     /etc/xrootd/tls/ca.crt
-xrootd_ca_mode:     file          # file | system | grid
-xrootd_ca_dir:      /etc/grid-security/certificates   # grid mode only
+xrootd_cert_dir:  /etc/xrootd/tls
+xrootd_cert_file: "{{ xrootd_cert_dir }}/server.crt"
+xrootd_key_file:  "{{ xrootd_cert_dir }}/server.key"
+xrootd_ca_file:   "{{ xrootd_cert_dir }}/ca.crt"
+xrootd_ca_mode:   file              # file | system | grid
+xrootd_ca_dir:    /etc/grid-security/certificates   # grid mode only
 
 # Features — all opt-in
 xrootd_http_enabled:       false
 xrootd_http_tpc_enabled:   false
+xrootd_tpc_enabled:        false
 xrootd_auth_enabled:       false
 xrootd_scitokens_enabled:  false
 xrootd_macaroons_enabled:  false
 xrootd_monitoring_enabled: false
+xrootd_chksum_enabled:     false    # adler32 (WLCG standard); benchmark before enabling
 
 # Macaroon secret (see Secrets section)
 xrootd_macaroon_secret_file: /etc/xrootd/macaroon-secret
@@ -204,7 +231,7 @@ xrootd_scitokens_audience: "https://wlcg.cern.ch/jwt/v1/any"
 xrootd_scitokens_issuers: []
 # - name:         my-iam
 #   url:          https://iam.example.org/
-#   base_path:    /
+#   base_path:    /data/xrootd
 #   default_user: xrootd
 
 # Authfile entries
@@ -344,11 +371,12 @@ all:
 
 ```yaml
 # inventory/group_vars/xrootd_servers/main.yml
-xrootd_data_path: /data/xrootd
+xrootd_exports:
+  - path: /data/xrootd
 ```
 
-Everything else defaults to: self-signed cert, port 1094, HTTP+TPC enabled,
-auth/scitokens/macaroons off.
+Everything else defaults to: self-signed cert, port 1094, all optional
+features (HTTP, TPC, auth, SciTokens, macaroons, checksums) disabled.
 
 ---
 
@@ -373,15 +401,15 @@ auth/scitokens/macaroons off.
 
 ## Phased Delivery
 
-### Phase 1 — Single Server (current)
+### Phase 1 — Single Server ✓ complete
 
-| Step | Scope |
-|------|-------|
-| 1a | `common` role: repos, packages, firewall setup, chrony |
-| 1b | `certificates` role: all 4 cert modes, vault integration |
-| 1c | `xrootd` role: install, dirs, firewall ports, configure, service, validate |
-| 1d | Playbooks, inventory examples, `ansible.cfg`, `.gitignore` |
-| 1e | `tune` role: kernel + NIC performance tuning *(planned — see below)* |
+| Step | Scope | Status |
+|------|-------|--------|
+| 1a | `common` role: repos, packages, firewall, chrony | ✓ |
+| 1b | `certificates` role: all 4 cert modes + 3 external sub-modes, vault integration | ✓ |
+| 1c | `xrootd` role: install, dirs, firewall, configure, service, validate | ✓ |
+| 1d | Playbooks, inventory examples, `ansible.cfg`, `.gitignore` | ✓ |
+| 1e | `tune` role: kernel + NIC performance tuning (ESNet DTN recommendations) | ✓ |
 
 ### Phase 2 — HA Redirector
 
@@ -389,22 +417,22 @@ auth/scitokens/macaroons off.
 - Multiple data servers pointing at a redirector pair
 - Shared macaroon secret via vault across all nodes
 
-### Phase 3 — Testing & Integration
+### Phase 3 — Testing & Integration ✓ complete
 
-- Molecule test suite: Rocky 9 + Ubuntu 24.04 via Docker
-- Verify all cert modes, all feature flags
-- GitHub Actions CI
+- Molecule test suite: Rocky 9 + Ubuntu 22.04 via Docker ✓
+- Four scenarios: default, cert_external, grid_egi, grid_osg ✓
+- Idempotence testing (second converge must produce zero changed tasks) ✓
+- GitHub Actions CI ✓
 
 ### Phase 4 — Advanced Features
 
 - Token/macaroon auth end-to-end
 - Rucio Storage Element integration
 - Prometheus/node-exporter + xrootd monitoring exporter
-- Logrotate configuration
 
 ---
 
-## Role: `tune` *(Phase 1e — planned)*
+## Role: `tune`
 
 ### Purpose
 
