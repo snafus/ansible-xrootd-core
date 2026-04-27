@@ -11,7 +11,7 @@ all.sitename {{ xrootd_site_name }}
 {% if xrootd_chksum_enabled %}
 # adler32 is the WLCG standard for FTS3 transfer verification and Rucio
 # replica consistency checks.
-xrootd.chksum max:{{ xrootd_chksum_max }} {{ xrootd_chksum_type }}
+xrootd.chksum max {{ xrootd_chksum_max }} {{ xrootd_chksum_type }}
 {% endif %}
 
 # --- Network ----------------------------------------------------------------
