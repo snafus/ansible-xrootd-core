@@ -1,8 +1,15 @@
 ---
 # Shared package installation tasks — included by all Molecule prepare playbooks.
-# Installs xrootd from EPEL (Rocky) or Ubuntu universe before converge runs.
-# In CI the CERN XRootD repo may be unreachable; pre-installing from the
-# distribution repo ensures the xrootd role can configure and start the service.
+#
+# Rocky: pre-install xrootd from EPEL so the service can start even if the
+# CERN repo is unreachable in CI. RPM handles the subsequent upgrade to the
+# CERN version cleanly (same package names, no soname conflict).
+#
+# Ubuntu: do NOT pre-install from Ubuntu universe. The CERN repo is reachable
+# in CI and is configured by the common role during converge. Pre-installing
+# from universe causes a dpkg file conflict when upgrading to the CERN build:
+# the soname changed between Ubuntu universe (5.x, libxrdposix3) and the
+# CERN packages (6.x, libxrdposix6t64).
 
 - name: Install EPEL repository (Rocky)
   ansible.builtin.dnf:
@@ -19,12 +26,3 @@
     state: present
     enablerepo: epel
   when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Install xrootd from Ubuntu universe
-  ansible.builtin.apt:
-    name:
-      - xrootd-server
-      - xrootd-client
-    state: present
-    update_cache: true
-  when: ansible_facts['os_family'] == 'Debian'
