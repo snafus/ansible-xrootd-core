@@ -37,6 +37,7 @@ provisioner:
         xrootd_ca_bundle_provider: osg
         xrootd_tls_enabled: false
         xrootd_http_enabled: false
+        xrootd_chksum_enabled: false
         xrootd_http_tpc_enabled: false
   options:
     diff: true

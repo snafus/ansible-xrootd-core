@@ -67,9 +67,9 @@ xrootd_ca_dir:  /etc/grid-security/certificates
 #   egi (default) — EGI IGTF trust anchors (Rocky + Ubuntu)
 #   osg           — OSG/CILogon trust anchors (Rocky only)
 
-# --- Features (all opt-in — explicitly enable what you need) ----------------
-xrootd_http_enabled:       false   # HTTP/WebDAV protocol (requires xrootd-server with HTTP plugin)
-xrootd_http_tpc_enabled:   false   # HTTP Third Party Copy via libXrdHttpTPC.so (requires HTTP enabled)
+# --- Features ---------------------------------------------------------------
+xrootd_http_enabled:       true    # HTTP/WebDAV protocol (requires xrootd-server with HTTP plugin)
+xrootd_http_tpc_enabled:   true    # HTTP Third Party Copy via libXrdHttpTPC.so (requires HTTP enabled)
 xrootd_tpc_enabled:        false   # Native XRootD TPC (xrootd.tpc authrz); required for FTS3 XRootD-to-XRootD transfers
 xrootd_auth_enabled:       false   # Authfile-based access control
 xrootd_scitokens_enabled:  false   # SciTokens / WLCG JWT token auth
@@ -79,8 +79,7 @@ xrootd_monitoring_enabled: false   # UDP monitoring export
 # --- Checksum ---------------------------------------------------------------
 # adler32 is the WLCG standard; required for FTS3 transfer verification and
 # Rucio replica catalogue consistency checks.
-# Enable when using FTS3 or Rucio — benchmark first on high-throughput nodes.
-xrootd_chksum_enabled: false
+xrootd_chksum_enabled: true
 xrootd_chksum_type:    adler32   # adler32 (WLCG), md5, crc32, sha2
 xrootd_chksum_max:     4         # max concurrent checksum calculations
 

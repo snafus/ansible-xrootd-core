@@ -90,8 +90,8 @@ xrootd_exports:
   - path: /data/xrootd
 ```
 
-Everything else uses safe defaults: self-signed cert, port 1094, all optional
-features (HTTP, TPC, auth, SciTokens, macaroons) disabled.
+Everything else uses safe defaults: self-signed cert, port 1094,
+HTTP/WebDAV + HTTP TPC + adler32 checksum enabled, auth/SciTokens/macaroons disabled.
 
 ## Export Paths
 
@@ -194,18 +194,23 @@ On Rocky, `update-crypto-policies --set DEFAULT:SHA1` is applied automatically
 when `ca_mode: grid` — required because some grid CA CRL chains include SHA-1
 signed components that Rocky 9's default crypto policy rejects.
 
-## Optional Features
+## Features
 
-All features are opt-in. Enable in `group_vars/xrootd_servers/main.yml`:
+### Enabled by default
 
 ```yaml
-xrootd_http_enabled: true            # HTTP/WebDAV protocol plugin
-xrootd_http_tpc_enabled: true        # Third Party Copy (requires http_enabled)
+xrootd_http_enabled: true       # HTTP/WebDAV protocol plugin
+xrootd_http_tpc_enabled: true   # HTTP Third Party Copy (requires http_enabled)
+xrootd_chksum_enabled: true     # adler32 checksum (WLCG standard for FTS3/Rucio)
+```
+
+### Disabled by default — enable in `group_vars/xrootd_servers/main.yml`
+
+```yaml
 xrootd_tpc_enabled: true             # Native XRootD TPC (FTS3 server-to-server)
 xrootd_macaroons_enabled: true       # Macaroon bearer token auth
 xrootd_scitokens_enabled: true       # SciTokens / WLCG JWT token auth
 xrootd_auth_enabled: true            # Authfile-based access control
-xrootd_chksum_enabled: true          # adler32 checksum (WLCG standard for FTS3/Rucio)
 xrootd_monitoring_enabled: true      # xrd.monitor UDP event stream
 xrootd_monitoring_host: "collector.example.org"   # required when monitoring enabled
 xrootd_reporting_enabled: true       # xrd.report periodic stats (Prometheus)
